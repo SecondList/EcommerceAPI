@@ -2,7 +2,7 @@
 
 namespace EcommerceAPI.Models
 {
-    public class Shipment
+    public class Shipment 
     {
         [Key]
         public int ShipmentId { get; set; }
