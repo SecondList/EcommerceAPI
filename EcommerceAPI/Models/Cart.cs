@@ -20,7 +20,7 @@ namespace EcommerceAPI.Models
         public int OrderQty { get; set; }
         public DateTime CreatedAt { get; set;}
         public DateTime ModifiedAt { get; set; }
-        public Buyer Buyer { get; set; } = null!;
+        public User User { get; set; } = null!;
         public Product Product { get; set; } = null!;
 
     }

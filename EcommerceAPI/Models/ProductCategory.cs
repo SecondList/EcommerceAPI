@@ -4,6 +4,7 @@ namespace EcommerceAPI.Models
 {
     public class ProductCategory
     {
+        [Key]
         public int CategoryId { get; set; }
 
         [Required(ErrorMessage = "A product category is required")]

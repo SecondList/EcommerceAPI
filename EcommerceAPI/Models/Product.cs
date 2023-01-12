@@ -18,7 +18,6 @@ namespace EcommerceAPI.Models
 
         public int CategoryId { get; set; }
 
-        [Column("Price", TypeName = "decimal(7, 2)")]
         [Required(ErrorMessage = "A product price is required")]
         [Range(0.01, Double.MaxValue, ErrorMessage = "Price must be positive")]
         public decimal Price { get; set; }
@@ -26,7 +25,7 @@ namespace EcommerceAPI.Models
         [DisplayName("Product Image URL")]
         [StringLength(1024, ErrorMessage = "Please do not enter values over 1024 characters")]
         public string ImageUrl { get; set; } = null!;
-        public ProductCategory ProductCategory { get; set; }
+        public ProductCategory ProductCategory { get; set; } = null!;
 
     }
 }

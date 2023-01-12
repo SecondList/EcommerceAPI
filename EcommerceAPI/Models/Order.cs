@@ -18,6 +18,8 @@ namespace EcommerceAPI.Models
 
         [Required]
         public int OrderStatus { get; set; }
-        public Buyer Buyer { get; set; } = null!;
+
+        public ICollection<OrderDetail> OrderDetails { get; set; } = null!;
+        public User Buyer { get; set; } = null!;
     }
 }
