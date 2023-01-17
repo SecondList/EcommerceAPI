@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace EcommerceAPI.Models
+namespace EcommerceAPI.Dto
 {
-    public class UserRegister
+    public class UserRegisterDto
     {
         [Required]
         [EmailAddress]

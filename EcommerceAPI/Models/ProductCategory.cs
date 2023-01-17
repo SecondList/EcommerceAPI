@@ -7,9 +7,11 @@ namespace EcommerceAPI.Models
         [Key]
         public int CategoryId { get; set; }
 
-        [Required(ErrorMessage = "A product category is required")]
-        [StringLength(160, ErrorMessage = "Please do not enter values over 160 characters")]
+        [Required]
+        [StringLength(160)]
         public string CategoryName { get; set; } = null!;
+        [Required]
+        public bool ActiveStatus { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime ModifiedAt { get; set; }
     }

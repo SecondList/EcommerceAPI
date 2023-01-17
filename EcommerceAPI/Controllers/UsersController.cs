@@ -1,30 +1,49 @@
-﻿using EcommerceAPI.Data;
+﻿using EcommerceAPI.ActionFilters;
+using EcommerceAPI.Data;
+using EcommerceAPI.Dto;
 using EcommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
-using System.Text.Json;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class UsersController : ControllerBase
     {
         private readonly EcommerceContext _context;
 
-        public UserController(EcommerceContext context)
+        public UsersController(EcommerceContext context)
         {
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        {
+            return await _context.Users.ToListAsync();
+        }
+
+        [HttpGet("email/{email}")]
+        public async Task<ActionResult<User>> GetUserByEmail(string email)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == email);
+
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+            return user;
+        }
+
         [HttpPost("register")]
-        public async Task<ActionResult> Register(UserRegister userRegisterRequest)
+        public async Task<ActionResult<User>> Register(UserRegisterDto userRegisterRequest)
         {
             if (_context.Users.Any(user => user.Email == userRegisterRequest.Email))
             {
-                string response = JsonSerializer.Serialize("Email already used.");
-                return BadRequest(response);
+                return BadRequest(new { message = "This email is already in use." });
             }
 
             CreatePasswordHash(userRegisterRequest.Password, out byte[] passwordHash, out byte[] passwordSalt);
@@ -34,33 +53,31 @@ namespace EcommerceAPI.Controllers
                 Email = userRegisterRequest.Email,
                 PasswordHash = passwordHash,
                 PasswordSalt = passwordSalt,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return Ok(user);
+            return Ok(new { message = "Your account has been successfully created." });
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult> Login(UserLogin userLoginRequest)
+        public async Task<ActionResult> Login(UserLoginDto userLoginRequest)
         {
             var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == userLoginRequest.Email);
 
             if (user == null)
             {
-                string response = JsonSerializer.Serialize("User not found.");
-                return BadRequest(response);
+                return BadRequest(new { message = "User not found." });
             }
 
             if (!VerifyPasswordHash(userLoginRequest.Password, user.PasswordHash, user.PasswordSalt))
             {
-                string response = JsonSerializer.Serialize("Password is incorrect.");
-                return BadRequest(response);
+                return BadRequest(new { message = "Password is incorrect." });
             }
 
-            return Ok(user);
+            return Ok(new { message = "Logging in your account." });
         }
 
         private void CreatePasswordHash(String password, out byte[] passwordHash, out byte[] passwordSalt)

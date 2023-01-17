@@ -1,4 +1,6 @@
-﻿namespace EcommerceAPI.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace EcommerceAPI.Models
 {
     public class Payment
     {
@@ -6,7 +8,8 @@
         public int OrderId { get; set; }
         public decimal Price { get; set; }
         public string PaymentMethod { get; set; } = null!;
-        public int ShippingId { get; set; }
+        [ForeignKey("Shipment")]
+        public int ShipmentId { get; set; }
         public int Status { get; set; }
         public DateTime PaymentDate { get; set; }
         public DateTime ModifiedAt { get; set; }
