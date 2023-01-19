@@ -1,10 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel;
-using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
-    public class CartDto
+    public class CartDetailDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "User Id must be positive value.")]
         public int UserId { get; set; }
@@ -15,9 +14,5 @@ namespace EcommerceAPI.Dto
         [Range(1, 99999, ErrorMessage = "Quantity must be a positive value and cannot order more than 99999 items")]
         [DisplayName("Order Quantity")]
         public int OrderQty { get; set; }
-
-        [JsonIgnore]
-        public virtual UserDto User { get; set; } = null!;
-        public virtual ProductDto Product { get; set; } = null!;
     }
 }

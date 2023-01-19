@@ -1,4 +1,5 @@
-﻿using EcommerceAPI.ActionFilters;
+﻿using AutoMapper;
+using EcommerceAPI.ActionFilters;
 using EcommerceAPI.Data;
 using EcommerceAPI.Dto;
 using EcommerceAPI.Models;
@@ -13,19 +14,26 @@ namespace EcommerceAPI.Controllers
     public class UsersController : ControllerBase
     {
         private readonly EcommerceContext _context;
+        private readonly IMapper _mapper;
 
-        public UsersController(EcommerceContext context)
+        public UsersController(EcommerceContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            var users = await _context.Users.ToListAsync();
+
+            var usersDetailDto = _mapper.Map<List<UserDetailDto>>(users);
+
+            return Ok(new { resultCount = usersDetailDto.Count, users = usersDetailDto });
         }
 
-        [HttpGet("email/{email}")]
+        // GET: api/Users/Email/user@example.com
+        [HttpGet("Email/{email}")]
         public async Task<ActionResult<User>> GetUserByEmail(string email)
         {
             var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == email);
@@ -35,11 +43,14 @@ namespace EcommerceAPI.Controllers
                 return NotFound(new { message = "User not found." });
             }
 
-            return user;
+            var userDetailDto = _mapper.Map<UserDetailDto>(user);
+
+            return Ok(new { resultCount = 1, users = userDetailDto }); ;
         }
 
-        [HttpPost("register")]
-        public async Task<ActionResult<User>> Register(UserRegisterDto userRegisterRequest)
+        // POST: api/Users/Register
+        [HttpPost("Register")]
+        public async Task<ActionResult<User>> Register([FromBody] UserRegisterDto userRegisterRequest)
         {
             if (_context.Users.Any(user => user.Email == userRegisterRequest.Email))
             {
@@ -48,13 +59,15 @@ namespace EcommerceAPI.Controllers
 
             CreatePasswordHash(userRegisterRequest.Password, out byte[] passwordHash, out byte[] passwordSalt);
 
-            var user = new User
+            var user = _mapper.Map<UserRegisterDto, User>(userRegisterRequest, opt =>
             {
-                Email = userRegisterRequest.Email,
-                PasswordHash = passwordHash,
-                PasswordSalt = passwordSalt,
-                CreatedAt = DateTime.Now
-            };
+                opt.AfterMap((userRegisterRequest, user) =>
+                {
+                    user.CreatedAt = DateTime.Now;
+                    user.PasswordHash = passwordHash;
+                    user.PasswordSalt = passwordSalt;
+                });
+            });
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -62,14 +75,15 @@ namespace EcommerceAPI.Controllers
             return Ok(new { message = "Your account has been successfully created." });
         }
 
-        [HttpPost("login")]
-        public async Task<ActionResult> Login(UserLoginDto userLoginRequest)
+        // POST: api/Users/Login
+        [HttpPost("Login")]
+        public async Task<ActionResult> Login([FromBody] UserLoginDto userLoginRequest)
         {
             var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == userLoginRequest.Email);
 
             if (user == null)
             {
-                return BadRequest(new { message = "User not found." });
+                return NotFound(new { message = "User not found." });
             }
 
             if (!VerifyPasswordHash(userLoginRequest.Password, user.PasswordHash, user.PasswordSalt))
@@ -78,6 +92,20 @@ namespace EcommerceAPI.Controllers
             }
 
             return Ok(new { message = "Logging in your account." });
+        }
+
+        // GET : api/Users/1/Cart
+        [HttpGet("{userId}/Cart")]
+        public async Task<ActionResult> GetUserCart(int userId)
+        {
+           var users = await _context.Users
+                                .Include(u => u.Carts)
+                                    .ThenInclude(c => c.Product)
+                                .Where(u => u.UserId == userId).ToListAsync();
+
+            var userDto = _mapper.Map<List<UserDto>>(users);
+
+            return Ok(new { users = userDto });
         }
 
         private void CreatePasswordHash(String password, out byte[] passwordHash, out byte[] passwordSalt)

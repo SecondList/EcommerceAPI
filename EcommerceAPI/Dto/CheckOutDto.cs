@@ -1,18 +1,19 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using EcommerceAPI.Filters;
+using System.ComponentModel.DataAnnotations;
 
-namespace EcommerceAPI.Models
+namespace EcommerceAPI.Dto
 {
-    public class Shipment
+    public class CheckOutDto
     {
-        [Key]
-        [Range(1, int.MaxValue, ErrorMessage = "Shipment Id must be positive value.")]
-        public int ShipmentId { get; set; }
+        // Cart details
+        [Range(1, int.MaxValue, ErrorMessage = "User Id must be positive value.")]
+        public int UserId { get; set; }
 
-        [ForeignKey("Order")]
-        [Range(1, int.MaxValue, ErrorMessage = "Order Id must be positive value.")]
-        public int OrderId { get; set; }
+        [ValidateIntArray]
+        public int[] ProductIds { get; set; } = Array.Empty<int>();
 
+
+        // Shipment details
         [Required(ErrorMessage = "A first name is required")]
         [StringLength(160, ErrorMessage = "Please do not enter values over 160 characters")]
         public string FirstName { get; set; } = null!;
@@ -40,9 +41,7 @@ namespace EcommerceAPI.Models
         [EmailAddress]
         public string Email { get; set; } = null!;
 
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
-
-        public virtual Order Order { get; set; } = null!;
+        // Payment details
 
     }
 }

@@ -1,15 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace EcommerceAPI.Models
+namespace EcommerceAPI.Dto
 {
-    public class Shipment
+    public class ShipmentDto
     {
-        [Key]
         [Range(1, int.MaxValue, ErrorMessage = "Shipment Id must be positive value.")]
         public int ShipmentId { get; set; }
 
-        [ForeignKey("Order")]
         [Range(1, int.MaxValue, ErrorMessage = "Order Id must be positive value.")]
         public int OrderId { get; set; }
 
@@ -40,9 +37,6 @@ namespace EcommerceAPI.Models
         [EmailAddress]
         public string Email { get; set; } = null!;
 
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
-
-        public virtual Order Order { get; set; } = null!;
-
+        public virtual OrderDto Order { get; set; } = null!;
     }
 }

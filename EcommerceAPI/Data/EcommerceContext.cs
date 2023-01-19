@@ -8,13 +8,26 @@ namespace EcommerceAPI.Data
         public EcommerceContext(DbContextOptions<EcommerceContext> options) : base(options)
         {
         }
-        public DbSet<Product> Products { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderDetail> OrderDetails { get; set; }
-        public DbSet<Payment> Payments { get; set; }
-        public DbSet<Cart> Carts { get; set; }
-        public DbSet<ProductCategory> ProductCategories { get; set; }
-        public DbSet<User> Users { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Cart>()
+                .HasKey(c => new { c.UserId, c.ProductId });
+            modelBuilder.Entity<User>()
+                .HasIndex(u => new { u.Email }).IsUnique();
+            modelBuilder.Entity<OrderDetail>()
+                .HasKey(od => new { od.OrderId, od.ProductId });
+            modelBuilder.Entity<Shipment>()
+                .HasIndex(s => new { s.OrderId }).IsUnique();
+        }
+
+        public DbSet<Product> Products { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderDetail> OrderDetails { get; set; } = null!;
+        public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<Cart> Carts { get; set; } = null!;
+        public DbSet<ProductCategory> ProductCategories { get; set; } = null!;
+        public DbSet<User> Users { get; set; } = null!;
 
     }
 }

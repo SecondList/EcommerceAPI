@@ -26,7 +26,8 @@ namespace EcommerceAPI.Models
         [DisplayName("Product Image URL")]
         [StringLength(1024, ErrorMessage = "Please do not enter values over 1024 characters")]
         public string ImageUrl { get; set; } = null!;
-        public ProductCategory ProductCategory { get; set; } = null!;
+        public DateTime ModifiedAt { get; set; } = DateTime.Now;
+        public virtual ProductCategory ProductCategory { get; set; } = null!;
 
     }
 }

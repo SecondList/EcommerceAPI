@@ -1,9 +1,8 @@
-﻿using EcommerceAPI.Dto;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace EcommerceAPI.Models
+namespace EcommerceAPI.Dto
 {
-    public class ProductCategory
+    public class ProductCategoryDetailDto
     {
         [Key]
         public int CategoryId { get; set; }
@@ -14,7 +13,5 @@ namespace EcommerceAPI.Models
 
         [Required(ErrorMessage = "The active status of this product category needed to be defined.")]
         public bool ActiveStatus { get; set; } = true;
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
-        public virtual ICollection<Product> Products { get; set; } = null!;
     }
 }
