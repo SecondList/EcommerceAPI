@@ -26,6 +26,10 @@ namespace EcommerceAPI.Dto
         [StringLength(50, ErrorMessage = "Please do not enter values over 50 characters")]
         public string City { get; set; } = null!;
 
+        [Required(ErrorMessage = "A state is required")]
+        [StringLength(50, ErrorMessage = "Please do not enter values over 50 characters")]
+        public string State { get; set; } = null!;
+
         [Required(ErrorMessage = "A postal code is required")]
         [StringLength(16, ErrorMessage = "Please do not enter values over 16 characters")]
         public string PostalCode { get; set; } = null!;
@@ -35,7 +39,14 @@ namespace EcommerceAPI.Dto
         public string Country { get; set; } = null!;
 
         [EmailAddress]
-        public string Email { get; set; } = null!;
+        public string ReceiptEmail { get; set; } = null!;
+
+        [Required(ErrorMessage = "A carrier is required")]
+        [StringLength(50, ErrorMessage = "Please do not enter values over 50 characters")]
+        public string Carrier { get; set; } = null!;
+
+        [StringLength(160, ErrorMessage = "Please do not enter values over 160 characters")]
+        public string TrackingNumber { get; set; } = null!;
 
         public virtual OrderDto Order { get; set; } = null!;
     }

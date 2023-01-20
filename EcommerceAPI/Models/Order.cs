@@ -17,7 +17,7 @@ namespace EcommerceAPI.Models
         public decimal TotalPrice { get; set; }
 
         [Range(0, int.MaxValue, ErrorMessage = "Invalid order status.")]
-        public int OrderStatus { get; set; }
+        public int OrderStatus { get; set; } = 0;
 
         public virtual ICollection<OrderDetail> OrderDetails { get; set; } = null!;
         public virtual User User { get; set; } = null!;

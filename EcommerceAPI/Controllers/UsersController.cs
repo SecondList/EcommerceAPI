@@ -98,10 +98,28 @@ namespace EcommerceAPI.Controllers
         [HttpGet("{userId}/Cart")]
         public async Task<ActionResult> GetUserCart(int userId)
         {
-           var users = await _context.Users
-                                .Include(u => u.Carts)
-                                    .ThenInclude(c => c.Product)
-                                .Where(u => u.UserId == userId).ToListAsync();
+            var users = await _context.Users
+                                 .Include(u => u.Carts)
+                                     .ThenInclude(c => c.Product)
+                                 .Where(u => u.UserId == userId).ToListAsync();
+
+            var userDto = _mapper.Map<List<UserDto>>(users);
+
+            return Ok(new { users = userDto });
+        }
+
+        // GET : api/Users/1/Order
+        [HttpGet("{userId}/Order")]
+        public async Task<ActionResult> GetUserOrder(int userId)
+        {
+            var users = await _context.Users
+                                 .Include(u => u.Orders)
+                                     .ThenInclude(o => o.OrderDetails)
+                                 .Include(u => u.Orders)
+                                     .ThenInclude(o => o.Payment)
+                                 .Include(u => u.Orders)
+                                     .ThenInclude(o => o.Shipment)
+                                 .Where(u => u.UserId == userId).ToListAsync();
 
             var userDto = _mapper.Map<List<UserDto>>(users);
 

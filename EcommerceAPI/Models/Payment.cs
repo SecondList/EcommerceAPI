@@ -20,8 +20,8 @@ namespace EcommerceAPI.Models
         [StringLength(50, ErrorMessage = "Please do not enter values over 50 characters")]
         public string PaymentMethod { get; set; } = null!;
 
-        [StringLength(50, ErrorMessage = "Please do not enter values over 50 characters")]
-        public string PaymentDescription { get; set; } = null!;
+        public string? PaymentRefId { get; set; }
+        public string? PaymentRefResponse { get; set; }
 
         [Range(0, int.MaxValue, ErrorMessage = "Invalid payment status.")]
         public int Status { get; set; }

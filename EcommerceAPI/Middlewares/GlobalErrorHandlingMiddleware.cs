@@ -73,7 +73,7 @@ namespace EcommerceAPI.Middlewares
             var exceptionResult = JsonSerializer.Serialize(new
             {
                 message = ($"{exceptionType.Name} error from the custom middleware."),
-                errors = exMessage,
+                errors = (exception.InnerException == null? exMessage : exception.InnerException.Message),
                 stackTrace
             });
 

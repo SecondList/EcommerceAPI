@@ -19,6 +19,8 @@ namespace EcommerceAPI.Data
                 .HasKey(od => new { od.OrderId, od.ProductId });
             modelBuilder.Entity<Shipment>()
                 .HasIndex(s => new { s.OrderId }).IsUnique();
+            modelBuilder.Entity<Shipment>()
+                .HasIndex(s => new { s.TrackingNumber }).IsUnique();
         }
 
         public DbSet<Product> Products { get; set; } = null!;
@@ -28,6 +30,7 @@ namespace EcommerceAPI.Data
         public DbSet<Cart> Carts { get; set; } = null!;
         public DbSet<ProductCategory> ProductCategories { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<Shipment> Shipments { get; set; } = null!;
 
     }
 }

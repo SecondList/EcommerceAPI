@@ -4,7 +4,7 @@ using EcommerceAPI.Models;
 
 namespace EcommerceAPI.Helper
 {
-    public class MappingProfiles: Profile
+    public class MappingProfiles : Profile
     {
         public MappingProfiles()
         {
@@ -35,13 +35,21 @@ namespace EcommerceAPI.Helper
             CreateMap<CartDeleteDto, Cart>();
             CreateMap<CartDetailDto, Cart>();
             CreateMap<Order, OrderDto>();
+            CreateMap<Order, Payment>().ForMember(p => p.Amount, opt => opt.MapFrom(o => o.TotalPrice));
             CreateMap<OrderDto, Order>();
             CreateMap<OrderDetail, OrderDetailDto>();
             CreateMap<OrderDetailDto, OrderDetail>();
             CreateMap<Payment, PaymentDto>();
+            CreateMap<Payment, Order>();
             CreateMap<PaymentDto, Payment>();
             CreateMap<Shipment, ShipmentDto>();
             CreateMap<ShipmentDto, Shipment>();
+            CreateMap<CheckOutDto, Order>();
+            CreateMap<CheckOutDto, OrderDetail>();
+            CreateMap<CheckOutDto, Payment>();
+            CreateMap<CheckOutDto, Shipment>();
+            CreateMap<CheckOutDto, StripePaymentDto>().ForMember(sp => sp.RecipientName, opt => opt.MapFrom(co => $"{co.FirstName} {co.LastName}"));
+            CreateMap<Cart, OrderDetail>().ForMember(od => od.Price, opt => opt.MapFrom(c => c.Product.Price));
         }
     }
 }
