@@ -4,6 +4,7 @@ using EcommerceAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EcommerceAPI.Migrations
 {
     [DbContext(typeof(EcommerceContext))]
-    partial class EcommerceContextModelSnapshot : ModelSnapshot
+    [Migration("20230125071510_remove_product_image")]
+    partial class remove_product_image
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,10 +141,6 @@ namespace EcommerceAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ImagePath")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -183,6 +181,28 @@ namespace EcommerceAPI.Migrations
                     b.HasKey("CategoryId");
 
                     b.ToTable("ProductCategories");
+                });
+
+            modelBuilder.Entity("EcommerceAPI.Models.ProductImage", b =>
+                {
+                    b.Property<int>("ProductImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductImageId"), 1L, 1);
+
+                    b.Property<string>("ImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProductImageId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
                 });
 
             modelBuilder.Entity("EcommerceAPI.Models.Shipment", b =>
@@ -393,6 +413,15 @@ namespace EcommerceAPI.Migrations
                     b.Navigation("ProductCategory");
                 });
 
+            modelBuilder.Entity("EcommerceAPI.Models.ProductImage", b =>
+                {
+                    b.HasOne("EcommerceAPI.Models.Product", null)
+                        .WithMany("ProductImages")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EcommerceAPI.Models.Shipment", b =>
                 {
                     b.HasOne("EcommerceAPI.Models.Order", "Order")
@@ -413,6 +442,11 @@ namespace EcommerceAPI.Migrations
 
                     b.Navigation("Shipment")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("EcommerceAPI.Models.Product", b =>
+                {
+                    b.Navigation("ProductImages");
                 });
 
             modelBuilder.Entity("EcommerceAPI.Models.ProductCategory", b =>

@@ -1,11 +1,19 @@
 using EcommerceAPI.ActionFilters;
+using EcommerceAPI.Configuration;
 using EcommerceAPI.Data;
 using EcommerceAPI.Middlewares;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using static System.Net.Mime.MediaTypeNames;
+using Microsoft.Extensions.DependencyInjection;
+using EcommerceAPI.Models;
+using EcommerceAPI.Interfaces;
+using EcommerceAPI.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,12 +33,45 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddDbContext<EcommerceContext>(options =>
 {
     // options.UseLazyLoadingProxies();
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+// JWT Bearer
+builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection(key: "JwtConfig"));
+
+var key = Encoding.ASCII.GetBytes(builder.Configuration.GetSection(key: "JwtConfig:Secret").Value);
+var issuer = builder.Configuration.GetSection(key: "JwtConfig:Issuer").Value;
+var audience = builder.Configuration.GetSection(key: "JwtConfig:Audience").Value;
+var subject = builder.Configuration.GetSection(key: "JwtConfig:Subject").Value;
+
+var tokenValidationParameters = new TokenValidationParameters()
+{
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(key),
+    ValidateIssuer = false, // for development
+    ValidateAudience = false, // for development
+    ValidAudience = audience,
+    ValidIssuer = issuer,
+    RequireExpirationTime = false,
+    ValidateLifetime = true
+};
+
+builder.Services.AddAuthentication(configureOptions: options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(jwt =>
+{
+    jwt.SaveToken = true;
+    jwt.TokenValidationParameters = tokenValidationParameters;
+});
+
+builder.Services.AddSingleton(tokenValidationParameters);
 
 // This is for action and controller level.
 // builder.Services.AddScoped<ValidateModelFilterAttribute>();
@@ -69,6 +110,7 @@ app.UseStatusCodePages(async statusCodeContext =>
 });
 
 app.UseAuthorization();
+app.UseAuthentication();
 
 app.MapControllers();
 

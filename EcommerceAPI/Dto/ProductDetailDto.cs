@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
@@ -21,8 +22,10 @@ namespace EcommerceAPI.Dto
         [Range(0.01, Double.MaxValue, ErrorMessage = "Price must be positive")]
         public decimal Price { get; set; }
 
-        [DisplayName("Product Image URL")]
-        [StringLength(1024, ErrorMessage = "Please do not enter values over 1024 characters")]
-        public string ImageUrl { get; set; } = null!;
+        [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+        public IFormFile Image { get; set; }
+
+        public string? ImagePath { get; set; }
+
     }
 }

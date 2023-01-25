@@ -23,10 +23,10 @@ namespace EcommerceAPI.Models
         [Range(0.01, Double.MaxValue, ErrorMessage = "Price must be positive")]
         public decimal Price { get; set; }
 
-        [DisplayName("Product Image URL")]
-        [StringLength(1024, ErrorMessage = "Please do not enter values over 1024 characters")]
-        public string ImageUrl { get; set; } = null!;
         public DateTime ModifiedAt { get; set; } = DateTime.Now;
+
+        [Required(ErrorMessage = "A product image is required")]
+        public string ImagePath { get; set; } = string.Empty!;
         public virtual ProductCategory ProductCategory { get; set; } = null!;
 
     }

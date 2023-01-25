@@ -1,40 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EcommerceAPI.Data;
 using EcommerceAPI.Models;
-using Microsoft.AspNetCore.Identity;
 using EcommerceAPI.Dto;
 using Microsoft.CodeAnalysis;
 using AutoMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using System;
+using EcommerceAPI.Helper;
+using System.IO;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductsController : ControllerBase
     {
         private readonly EcommerceContext _context;
         private readonly IMapper _mapper;
+        private readonly IWebHostEnvironment _environment;
 
-        public ProductsController(EcommerceContext context, IMapper mapper)
+        public ProductsController(EcommerceContext context, IMapper mapper, IWebHostEnvironment environment)
         {
             _context = context;
             _mapper = mapper;
+            _environment = environment;
         }
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
-            var products = await _context.Products.ToListAsync();
-            var productsDto =  _mapper.Map<List<ProductDetailDto>>(products);
+            var pageCount = Math.Ceiling(_context.Products.Count() / (float)pageSize);
 
-            return Ok(new { resultCount = productsDto.Count, products = productsDto });
+            var products = await _context.Products.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            var productsDto = _mapper.Map<List<ProductDetailDto>>(products);
+
+            return Ok(new { resultCount = productsDto.Count, products = productsDto, pageSize = pageSize, page = page, pageCount = pageCount });
         }
 
         // GET: api/Products/5
@@ -54,9 +58,8 @@ namespace EcommerceAPI.Controllers
         }
 
         // PUT: api/Products/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{productId}")]
-        public async Task<IActionResult> PutProduct(int productId, ProductDetailDto productDto)
+        public async Task<IActionResult> PutProduct(int productId, [FromForm] ProductDetailDto productDto)
         {
             if (productId != productDto.ProductId)
             {
@@ -73,6 +76,23 @@ namespace EcommerceAPI.Controllers
                 return NotFound(new { message = "Unable to update product with the product category.", errors = new[] { "The product category is either not found or inactive." } });
             }
 
+            var filePath = Path.Combine(_environment.WebRootPath, "products", "images", FileHelper.GetUniqueFileName(productDto.Image.FileName));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            await productDto.Image.CopyToAsync(new FileStream(filePath, FileMode.Create));
+
+            productDto.ImagePath = filePath;
+
+            var oldPath = await _context.Products.Where(p => p.ProductId == productId).Select(p => p.ImagePath).FirstOrDefaultAsync();
+
+            if (oldPath != null)
+            {
+                System.GC.Collect();
+                System.GC.WaitForPendingFinalizers();
+                System.IO.File.Delete(oldPath);
+            }
+
             var product = _mapper.Map<Product>(productDto);
 
             _context.Update(product);
@@ -83,14 +103,21 @@ namespace EcommerceAPI.Controllers
         }
 
         // POST: api/Products/Register
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost("Register")]
-        public async Task<ActionResult<ProductDto>> PostProduct(ProductCreateDto productDto)
+        public async Task<ActionResult<ProductDto>> PostProduct([FromForm] ProductCreateDto productDto)
         {
             if (!ProductCategoryValid(productDto.CategoryId))
             {
                 return NotFound(new { message = "Unable to register a new product with the product category.", errors = new[] { "The product category is either not found or inactive." } });
             }
+
+            var filePath = Path.Combine(_environment.WebRootPath, "products", "images", FileHelper.GetUniqueFileName(productDto.Image.FileName));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            await productDto.Image.CopyToAsync(new FileStream(filePath, FileMode.Create));
+
+            productDto.ImagePath = filePath;
 
             var product = _mapper.Map<Product>(productDto);
 
@@ -101,13 +128,22 @@ namespace EcommerceAPI.Controllers
         }
 
         // DELETE: api/Products/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProduct(int id)
+        [HttpDelete("{productId}")]
+        public async Task<IActionResult> DeleteProduct(int productId)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products.FindAsync(productId);
             if (product == null)
             {
                 return NotFound(new { message = "Product not found." });
+            }
+            
+            var oldPath = await _context.Products.Where(p => p.ProductId == productId).Select(p => p.ImagePath).FirstOrDefaultAsync();
+
+            if (oldPath != null)
+            {
+                System.GC.Collect();
+                System.GC.WaitForPendingFinalizers();
+                System.IO.File.Delete(oldPath);
             }
 
             _context.Products.Remove(product);

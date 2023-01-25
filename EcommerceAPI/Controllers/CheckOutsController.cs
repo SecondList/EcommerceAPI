@@ -4,6 +4,8 @@ using EcommerceAPI.Dto;
 using EcommerceAPI.Helper;
 using EcommerceAPI.Interfaces;
 using EcommerceAPI.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +15,7 @@ namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class CheckOutsController : ControllerBase
     {
         private readonly EcommerceContext _context;

@@ -50,6 +50,8 @@ namespace EcommerceAPI.Helper
             CreateMap<CheckOutDto, Shipment>();
             CreateMap<CheckOutDto, StripePaymentDto>().ForMember(sp => sp.RecipientName, opt => opt.MapFrom(co => $"{co.FirstName} {co.LastName}"));
             CreateMap<Cart, OrderDetail>().ForMember(od => od.Price, opt => opt.MapFrom(c => c.Product.Price));
+            CreateMap<UserToken, TokenRequestDto>();
+            CreateMap<TokenRequestDto, UserToken>();
         }
     }
 }

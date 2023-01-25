@@ -5,11 +5,14 @@ using EcommerceAPI.Models;
 using EcommerceAPI.Dto;
 using Microsoft.CodeAnalysis;
 using AutoMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class CartsController : ControllerBase
     {
         private readonly EcommerceContext _context;
