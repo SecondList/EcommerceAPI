@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using EcommerceAPI.Interfaces;
 
 namespace EcommerceAPI.Controllers
 {
@@ -15,12 +16,12 @@ namespace EcommerceAPI.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class CartsController : ControllerBase
     {
-        private readonly EcommerceContext _context;
+        private readonly ICartRepository _cartRepository;
         private readonly IMapper _mapper;
 
-        public CartsController(EcommerceContext context, IMapper mapper)
+        public CartsController(ICartRepository cartRepository, IMapper mapper)
         {
-            _context = context;
+            _cartRepository = cartRepository;
             _mapper = mapper;
         }
 
@@ -34,20 +35,9 @@ namespace EcommerceAPI.Controllers
             return Ok(new { resultCount = cartsDto.Count, carts = cartsDto });
         }
 
-        // GET: api/Carts/1
-        [HttpGet("{userId}")]
-        public async Task<ActionResult<IEnumerable<Cart>>> GetCartsByUser(int userId)
-        {
-            var carts = await _context.Carts.Where(c => c.UserId == userId).ToListAsync();
-            var cartsDto = _mapper.Map<List<CartDetailDto>>(carts);
-
-            return Ok(new { resultCount = cartsDto.Count, carts = cartsDto });
-        }
-
-        // PUT: api/Carts/5/UpdateOrderQty
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{userId}/UpdateOrderQty")]
-        public async Task<IActionResult> UpdateOrderQty(int userId, [FromBody] CartDetailDto cartDto)
+        // PUT: api/Carts/UpdateOrderQtylinkid=2123754
+        [HttpPut("UpdateOrderQty")]
+        public async Task<IActionResult> UpdateOrderQty([FromBody] CartDetailDto cartDto)
         {
             if (userId != cartDto.UserId)
             {

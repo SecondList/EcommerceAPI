@@ -19,9 +19,34 @@ namespace EcommerceAPI.Repository
             return await _context.Users.OrderBy(u => u.UserId).ToListAsync();
         }
 
+        public async Task<User> GetUser(int userId)
+        {
+            return await _context.Users.Where(u => u.UserId == userId).FirstOrDefaultAsync();
+        }
+
         public async Task<User> GetUserByEmail(string email)
         {
             return await _context.Users.FirstOrDefaultAsync(user => user.Email == email);
+        }
+
+        public async Task<User> GetUserCart(int userId)
+        {
+            return await _context.Users
+                                 .Include(u => u.Carts.OrderBy(c => c.CreatedAt))
+                                     .ThenInclude(c => c.Product)
+                                 .FirstOrDefaultAsync(u => u.UserId == userId);
+        }
+        public async Task<User> GetUserOrder(int userId)
+        {
+            return await _context.Users
+                                 .Include(u => u.Orders.OrderBy(o => o.OrderId))
+                                     .ThenInclude(o => o.OrderDetails)
+                                        .ThenInclude(od => od.Product)
+                                 .Include(u => u.Orders)
+                                     .ThenInclude(o => o.Payment)
+                                 .Include(u => u.Orders)
+                                     .ThenInclude(o => o.Shipment)
+                                 .FirstOrDefaultAsync(u => u.UserId == userId);
         }
 
         public async Task<ICollection<User>> UserLogin()
@@ -34,13 +59,23 @@ namespace EcommerceAPI.Repository
             throw new NotImplementedException();
         }
 
-        public bool AddUser(User user)
+        public User CreateUser(User user)
         {
             _context.Users.Add(user);
-            boolResponse = Save();
-
-            return boolResponse;
+            return user;
             
+        }
+
+        public UserToken CreateToken(UserToken userToken)
+        {
+            _context.UserTokens.Add(userToken);
+            return userToken;
+        }
+
+        public UserToken UpdateToken(UserToken userToken)
+        {
+            _context.UserTokens.Update(userToken);
+            return userToken;
         }
 
         public async Task<bool> Save()
@@ -48,6 +83,11 @@ namespace EcommerceAPI.Repository
             var saved = await _context.SaveChangesAsync();
 
             return saved > 0 ? true : false;
+        }
+
+        public async Task<UserToken> GetUserToken(string refreshToken)
+        {
+            return await _context.UserTokens.FirstOrDefaultAsync(ut => ut.Token == refreshToken);
         }
 
         public bool EmailUsed(string email)

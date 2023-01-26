@@ -1,15 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using EcommerceAPI.Data;
 using EcommerceAPI.Models;
 using EcommerceAPI.Dto;
-using Microsoft.CodeAnalysis;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using System;
 using EcommerceAPI.Helper;
-using System.IO;
+using EcommerceAPI.Interfaces;
 
 namespace EcommerceAPI.Controllers
 {
@@ -18,13 +14,15 @@ namespace EcommerceAPI.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductsController : ControllerBase
     {
-        private readonly EcommerceContext _context;
+        private readonly IProductRepository _productRepository;
+        private readonly IProductCategoryRepository _productCategoryRepository;
         private readonly IMapper _mapper;
         private readonly IWebHostEnvironment _environment;
 
-        public ProductsController(EcommerceContext context, IMapper mapper, IWebHostEnvironment environment)
+        public ProductsController(IProductRepository productRepository, IProductCategoryRepository productCategoryRepository, IMapper mapper, IWebHostEnvironment environment)
         {
-            _context = context;
+            _productRepository = productRepository;
+            _productCategoryRepository = productCategoryRepository;
             _mapper = mapper;
             _environment = environment;
         }
@@ -33,23 +31,24 @@ namespace EcommerceAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
-            var pageCount = Math.Ceiling(_context.Products.Count() / (float)pageSize);
+            var pageCount = Math.Ceiling(_productRepository.CountProducts() / (float)pageSize);
 
-            var products = await _context.Products.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            var products = await _productRepository.GetProducts(page, pageSize);
+
             var productsDto = _mapper.Map<List<ProductDetailDto>>(products);
 
-            return Ok(new { resultCount = productsDto.Count, products = productsDto, pageSize = pageSize, page = page, pageCount = pageCount });
+            return Ok(new BaseResponse { ResultCount = productsDto.Count, Result = productsDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         // GET: api/Products/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(int id)
+        [HttpGet("{productId}")]
+        public async Task<ActionResult<Product>> GetProduct(int productId)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _productRepository.GetProduct(productId);
 
             if (product == null)
             {
-                return NotFound(new { message = "Product not found.", errors = new[] { $"No product with id {id}" } });
+                return NotFound(new BaseResponse { Message = "Product not found.", Errors = new[] { $"No product with id {productId}" } });
             }
 
             var productDto = _mapper.Map<ProductDetailDto>(product);
@@ -59,107 +58,101 @@ namespace EcommerceAPI.Controllers
 
         // PUT: api/Products/5
         [HttpPut("{productId}")]
-        public async Task<IActionResult> PutProduct(int productId, [FromForm] ProductDetailDto productDto)
+        public async Task<IActionResult> UpdateProduct(int productId, [FromForm] ProductDetailDto productDto)
         {
             if (productId != productDto.ProductId)
             {
                 return BadRequest(new { message = "Fail to verify product id.", errors = new[] { "Product Id not match." } });
             }
 
-            if (!ProductExists(productId))
+            if (!_productRepository.IsProductExists(productId))
             {
                 return NotFound(new { message = "Product not found." });
             }
 
-            if (!ProductCategoryValid(productDto.CategoryId))
+            if (!_productCategoryRepository.IsProductCategoryActive(productDto.CategoryId))
             {
-                return NotFound(new { message = "Unable to update product with the product category.", errors = new[] { "The product category is either not found or inactive." } });
+                return NotFound(new BaseResponse { Message = "Unable to update product with the product category.", Errors = new[] { "The product category is either not found or inactive." } });
             }
 
-            var filePath = Path.Combine(_environment.WebRootPath, "products", "images", FileHelper.GetUniqueFileName(productDto.Image.FileName));
-
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-            await productDto.Image.CopyToAsync(new FileStream(filePath, FileMode.Create));
+            var filePath = await UploadImage(productDto.Image);
 
             productDto.ImagePath = filePath;
 
-            var oldPath = await _context.Products.Where(p => p.ProductId == productId).Select(p => p.ImagePath).FirstOrDefaultAsync();
-
-            if (oldPath != null)
-            {
-                System.GC.Collect();
-                System.GC.WaitForPendingFinalizers();
-                System.IO.File.Delete(oldPath);
-            }
+            await DeleteOldImage(productId);
 
             var product = _mapper.Map<Product>(productDto);
 
-            _context.Update(product);
-            await _context.SaveChangesAsync();
+            _productRepository.UpdateProduct(product);
+            await _productRepository.Save();
 
-            return Ok(new { message = "Product updated." });
+            return Ok(new BaseResponse { Message = "Product updated." });
 
         }
 
         // POST: api/Products/Register
         [HttpPost("Register")]
-        public async Task<ActionResult<ProductDto>> PostProduct([FromForm] ProductCreateDto productDto)
+        public async Task<ActionResult<ProductDto>> CreateProduct([FromForm] ProductCreateDto productDto)
         {
-            if (!ProductCategoryValid(productDto.CategoryId))
+            if (!_productCategoryRepository.IsProductCategoryActive(productDto.CategoryId))
             {
-                return NotFound(new { message = "Unable to register a new product with the product category.", errors = new[] { "The product category is either not found or inactive." } });
+                return NotFound(new BaseResponse { Message = "Unable to register a new product with the product category.", Errors = new[] { "The product category is either not found or inactive." } });
             }
 
-            var filePath = Path.Combine(_environment.WebRootPath, "products", "images", FileHelper.GetUniqueFileName(productDto.Image.FileName));
-
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-            await productDto.Image.CopyToAsync(new FileStream(filePath, FileMode.Create));
+            var filePath = await UploadImage(productDto.Image);
 
             productDto.ImagePath = filePath;
 
             var product = _mapper.Map<Product>(productDto);
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            _productRepository.CreateProduct(product);
+            await _productRepository.Save();
 
-            return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
+            return CreatedAtAction("GetProduct", new { productId = product.ProductId }, product);
         }
 
         // DELETE: api/Products/5
         [HttpDelete("{productId}")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
-            var product = await _context.Products.FindAsync(productId);
+            var product = await _productRepository.GetProduct(productId);
+
             if (product == null)
             {
                 return NotFound(new { message = "Product not found." });
             }
-            
-            var oldPath = await _context.Products.Where(p => p.ProductId == productId).Select(p => p.ImagePath).FirstOrDefaultAsync();
 
-            if (oldPath != null)
-            {
-                System.GC.Collect();
-                System.GC.WaitForPendingFinalizers();
-                System.IO.File.Delete(oldPath);
-            }
+            await DeleteOldImage(productId);
 
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
+            _productRepository.RemoveProduct(product);
+            await _productRepository.Save();
 
             return Ok(new { message = "Product removed." });
         }
 
-        private bool ProductExists(int id)
+        private async Task<bool> DeleteOldImage(int productId)
         {
-            return _context.Products.Any(e => e.ProductId == id);
+            var existingProduct = await _productRepository.GetProduct(productId);
+
+            if (existingProduct.ImagePath != null)
+            {
+                System.GC.Collect();
+                System.GC.WaitForPendingFinalizers();
+                System.IO.File.Delete(existingProduct.ImagePath);
+            }
+
+            return true;
         }
 
-        private bool ProductCategoryValid(int id)
+        private async Task<string> UploadImage(IFormFile image)
         {
-            return _context.ProductCategories.Any(e => e.CategoryId == id && e.ActiveStatus == true);
+            var filePath = Path.Combine(_environment.WebRootPath, "products", "images", FileHelper.GetUniqueFileName(image.FileName));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            await image.CopyToAsync(new FileStream(filePath, FileMode.Create));
+
+            return filePath;
         }
     }
 }

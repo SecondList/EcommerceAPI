@@ -2,7 +2,9 @@
 using EcommerceAPI.Configuration;
 using EcommerceAPI.Data;
 using EcommerceAPI.Dto;
+using EcommerceAPI.Interfaces;
 using EcommerceAPI.Models;
+using EcommerceAPI.Repository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,14 +22,14 @@ namespace EcommerceAPI.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly EcommerceContext _context;
+        private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly TokenValidationParameters _tokenValidationParameters;
 
-        public UsersController(EcommerceContext context, IMapper mapper, IConfiguration configuration, TokenValidationParameters tokenValidationParameters)
+        public UsersController(IUserRepository userRepository, IMapper mapper, IConfiguration configuration, TokenValidationParameters tokenValidationParameters)
         {
-            _context = context;
+            _userRepository = userRepository;
             _mapper = mapper;
             _configuration = configuration;
             _tokenValidationParameters = tokenValidationParameters;
@@ -35,13 +37,13 @@ namespace EcommerceAPI.Controllers
 
         [HttpGet]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserDetailDto>>> GetUsers()
         {
-            var users = await _context.Users.ToListAsync();
+            var users = await _userRepository.GetUsers();
 
             var usersDetailDto = _mapper.Map<List<UserDetailDto>>(users);
 
-            return Ok(new { resultCount = usersDetailDto.Count, users = usersDetailDto });
+            return Ok(new BaseResponse { Result = usersDetailDto, ResultCount = usersDetailDto.Count });
         }
 
         // GET: api/Users/Email/user@example.com
@@ -49,11 +51,11 @@ namespace EcommerceAPI.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<User>> GetUserByEmail(string email)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == email);
+            var user = await _userRepository.GetUserByEmail(email);
 
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new BaseResponse { Message = "User not found." });
             }
 
             var userDetailDto = _mapper.Map<UserDetailDto>(user);
@@ -65,9 +67,9 @@ namespace EcommerceAPI.Controllers
         [HttpPost("Register")]
         public async Task<ActionResult<User>> Register([FromBody] UserRegisterDto userRegisterRequest)
         {
-            if (_context.Users.Any(user => user.Email == userRegisterRequest.Email))
+            if (_userRepository.EmailUsed(userRegisterRequest.Email))
             {
-                return BadRequest(new { message = "This email is already in use." });
+                return BadRequest(new BaseResponse { Message = "This email is already in use." });
             }
 
             CreatePasswordHash(userRegisterRequest.Password, out byte[] passwordHash, out byte[] passwordSalt);
@@ -82,33 +84,38 @@ namespace EcommerceAPI.Controllers
                 });
             });
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            _userRepository.CreateUser(user);
+            var response = await _userRepository.Save();
+
+            if (response != true)
+            {
+                return BadRequest(new BaseResponse { Message = "Something went wrong." });
+            }
 
             var tokenString = await GenerateJwtToken(user);
 
-            return Ok(new { message = "Your account has been successfully created.", token = tokenString });
+            return Ok(new BaseResponse { Message = "Your account has been successfully created.", Result = tokenString });
         }
 
         // POST: api/Users/Login
         [HttpPost("Login")]
         public async Task<ActionResult> Login([FromBody] UserLoginDto userLoginRequest)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(user => user.Email == userLoginRequest.Email);
+            var user = await _userRepository.GetUserByEmail(userLoginRequest.Email);
 
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new BaseResponse { Message = "User not found." });
             }
 
             if (!VerifyPasswordHash(userLoginRequest.Password, user.PasswordHash, user.PasswordSalt))
             {
-                return BadRequest(new { message = "Password is incorrect." });
+                return BadRequest(new BaseResponse { Message = "Password is incorrect." });
             }
 
             var tokenString = await GenerateJwtToken(user);
 
-            return Ok(new { message = "Logging in your account.", token = tokenString });
+            return Ok(new BaseResponse { Message = "Logging in your account.", Result = tokenString });
         }
 
         // POST: api/Users/RefreshToken
@@ -119,50 +126,42 @@ namespace EcommerceAPI.Controllers
 
             if (result == null)
             {
-                return BadRequest(new { message = "Invalid tokens." });
+                return BadRequest(new BaseResponse { Message = "Invalid tokens." });
             }
 
 
-            return Ok(new { message = "Token Refreshed.", token = result });
+            return Ok(new BaseResponse { Message = "Token Refreshed.", Result = result });
         }
 
-        // GET : api/Users/1/Cart
-        [HttpGet("{userId}/Cart")]
+        // GET : api/Users/Cart
+        [HttpGet("Cart")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult> GetUserCart(int userId)
+        public async Task<ActionResult> GetUserCart()
         {
-            var users = await _context.Users
-                                 .Include(u => u.Carts)
-                                     .ThenInclude(c => c.Product)
-                                 .Where(u => u.UserId == userId).ToListAsync();
+            var userId = int.Parse(User.Claims.Where(x => x.Type == "UserId").FirstOrDefault()?.Value);
 
-            var userDto = _mapper.Map<List<UserDto>>(users);
+            var user = await _userRepository.GetUserCart(userId);
 
-            return Ok(new { users = userDto });
+            var userDto = _mapper.Map<UserDto>(user);
+
+            return Ok(new BaseResponse { Result = userDto });
         }
 
-        // GET : api/Users/1/Order
-        [HttpGet("{userId}/Order")]
+        // GET : api/Users/Order
+        [HttpGet("Order")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult> GetUserOrder(int userId, [FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
+        public async Task<ActionResult> GetUserOrder([FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
         {
-            var users = await _context.Users
-                                 .Include(u => u.Orders)
-                                     .ThenInclude(o => o.OrderDetails)
-                                        .ThenInclude(od => od.Product)
-                                 .Include(u => u.Orders)
-                                     .ThenInclude(o => o.Payment)
-                                 .Include(u => u.Orders)
-                                     .ThenInclude(o => o.Shipment)
-                                 .Where(u => u.UserId == userId).ToListAsync();
-
-            var userDto = _mapper.Map<List<UserDto>>(users);
-            var orders = userDto[0].Orders;
+            var userId = int.Parse(User.Claims.Where(x => x.Type == "UserId").FirstOrDefault()?.Value);
+            var user = await _userRepository.GetUserOrder(userId);
+            
+            var userDto = _mapper.Map<UserDto>(user);
+            var orders = userDto.Orders;
 
             var pageCount = Math.Ceiling(orders.Count() / (float)pageSize);
             var pagedOrders = orders.Skip((page - 1) * pageSize).Take(pageSize);
 
-            return Ok(new { resultCount = pagedOrders.Count(), orders = pagedOrders, pageSize = pageSize, page = page, pageCount = pageCount });
+            return Ok(new BaseResponse { ResultCount = pagedOrders.Count(), Result = pagedOrders, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         private void CreatePasswordHash(String password, out byte[] passwordHash, out byte[] passwordSalt)
@@ -215,8 +214,8 @@ namespace EcommerceAPI.Controllers
                 UserId = user.UserId
             };
 
-            _context.UserTokens.Add(userToken);
-            await _context.SaveChangesAsync();
+            _userRepository.CreateToken(userToken);
+            await _userRepository.Save();
 
             var tokenRequest = new TokenRequestDto
             {
@@ -254,7 +253,7 @@ namespace EcommerceAPI.Controllers
                 return null;
             }
 
-            var storedToken = await _context.UserTokens.FirstOrDefaultAsync(ut => ut.Token == tokenRequest.RefreshToken);
+            var storedToken = await _userRepository.GetUserToken(tokenRequest.RefreshToken);
 
             if (storedToken == null)
             {
@@ -285,10 +284,10 @@ namespace EcommerceAPI.Controllers
 
             storedToken.IsUsed = true;
 
-            _context.UserTokens.Update(storedToken);
-            await _context.SaveChangesAsync();
+            _userRepository.UpdateToken(storedToken);
+            await _userRepository.Save();
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == storedToken.UserId);
+            var user = await _userRepository.GetUser(storedToken.UserId);
 
             return await GenerateJwtToken(user);
         }

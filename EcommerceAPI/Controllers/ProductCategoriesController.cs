@@ -1,13 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using EcommerceAPI.Data;
 using EcommerceAPI.Models;
 using EcommerceAPI.Dto;
-using Microsoft.CodeAnalysis;
 using AutoMapper;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using EcommerceAPI.Interfaces;
 
 namespace EcommerceAPI.Controllers
 {
@@ -16,12 +13,12 @@ namespace EcommerceAPI.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductCategoriesController : ControllerBase
     {
-        private readonly EcommerceContext _context;
+        private readonly IProductCategoryRepository _productCategoryRepository;
         private readonly IMapper _mapper;
 
-        public ProductCategoriesController(EcommerceContext context, IMapper mapper)
+        public ProductCategoriesController(IProductCategoryRepository productCategoryRepository, IMapper mapper)
         {
-            _context = context;
+            _productCategoryRepository = productCategoryRepository;
             _mapper = mapper;
         }
 
@@ -29,18 +26,18 @@ namespace EcommerceAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductCategoryDetailDto>>> GetProductCategories()
         {
-            var productCategories = await _context.ProductCategories.ToListAsync();
+            var productCategories = await _productCategoryRepository.GetProductCategories();
 
             var productCategoriesDto = _mapper.Map<List<ProductCategoryDetailDto>>(productCategories);
 
-            return Ok(new { resultCount = productCategories.Count, productCategories = productCategoriesDto });
+            return Ok(new BaseResponse { ResultCount = productCategories.Count, Result = productCategoriesDto });
         }
 
         // GET: api/ProductCategories/5
         [HttpGet("{categoryId}")]
         public async Task<ActionResult<ProductCategoryDto>> GetProductCategory(int categoryId)
         {
-            var productCategory = await _context.ProductCategories.FindAsync(categoryId);
+            var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
 
             if (productCategory == null)
             {
@@ -49,7 +46,7 @@ namespace EcommerceAPI.Controllers
 
             var productCategoryDto = _mapper.Map<ProductCategoryDetailDto>(productCategory);
 
-            return Ok(new { resultCount = 1, productCategories = productCategoryDto });
+            return Ok(new BaseResponse { ResultCount = 1, Result = productCategoryDto });
         }
 
         // PUT: api/ProductCategories/5
@@ -61,15 +58,15 @@ namespace EcommerceAPI.Controllers
                 return BadRequest(new { message = "Category Id unmatch." });
             }
 
-            if (!ProductCategoryExists(categoryId))
+            if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
             {
                 return NotFound(new { message = "Product category not found." });
             }
 
             var productCategory = _mapper.Map<ProductCategory>(productCategoryModifyRequest);
 
-            _context.Update(productCategory);
-            await _context.SaveChangesAsync();
+            _productCategoryRepository.UpdateProductCategory(productCategory);
+            await _productCategoryRepository.Save();
 
             return Ok(new { message = "Product category updated."});
         }
@@ -80,8 +77,8 @@ namespace EcommerceAPI.Controllers
         {
             var productCategory = _mapper.Map<ProductCategory>(productCategoryModifyRequest);
 
-            _context.ProductCategories.Add(productCategory);
-            await _context.SaveChangesAsync();
+            _productCategoryRepository.CreateProductCategory(productCategory);
+            await _productCategoryRepository.Save();
 
             var productCategoriesDto = _mapper.Map<ProductCategoryDetailDto>(productCategory);
 
@@ -92,38 +89,33 @@ namespace EcommerceAPI.Controllers
         [HttpDelete("{categoryId}")]
         public async Task<IActionResult> DeleteProductCategory(int categoryId)
         {
-            var productCategory = await _context.ProductCategories.FindAsync(categoryId);
+            var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
 
             if (productCategory == null)
             {
-                return NotFound(new { message = "Product category not found." });
+                return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
-            _context.ProductCategories.Remove(productCategory);
-            await _context.SaveChangesAsync();
+            _productCategoryRepository.RemoveProductCategory(productCategory);
+            await _productCategoryRepository.Save();
 
-            return Ok(new { message = "Product category removed." });
+            return Ok(new BaseResponse { Message = "Product category removed." });
         }
 
         // GET : api/ProductCategories/1/Products
         [HttpGet("{categoryId}/Products")]
         public async Task<IActionResult> GetProductInCategory(int categoryId)
         {
-            if (!ProductCategoryExists(categoryId))
+            if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
             {
                 return NotFound(new { message = "Product category not found." });
             }
 
-            var productCat = await _context.ProductCategories.Include(pc => pc.Products).FirstOrDefaultAsync(pc => pc.CategoryId == categoryId);
+            var productCat = await _productCategoryRepository.GetProductByCategory(categoryId);
 
             var productCategoryDto = _mapper.Map<ProductCategoryDto>(productCat);
 
-            return Ok(new { resultCount = productCategoryDto.Products.Count, productCategories = productCategoryDto });
-        }
-
-        private bool ProductCategoryExists(int categoryId)
-        {
-            return _context.ProductCategories.Any(e => e.CategoryId == categoryId);
+            return Ok(new BaseResponse { ResultCount = productCategoryDto.Products.Count, Result = productCategoryDto });
         }
     }
 }

@@ -27,7 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Repository\" />
     <Folder Include="wwwroot\products\" />
     <Folder Include="wwwroot\products\images\" />
   </ItemGroup>

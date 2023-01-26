@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
@@ -17,6 +18,8 @@ namespace EcommerceAPI.Dto
         public int OrderStatus { get; set; }
 
         public virtual ICollection<OrderDetailDto> OrderDetails { get; set; } = null!;
+
+        [JsonIgnore]
         public virtual UserDto User { get; set; } = null!;
         public virtual PaymentDto Payment { get; set; } = null!;
         public virtual ShipmentDto Shipment { get; set; } = null!;
