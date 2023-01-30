@@ -5,38 +5,51 @@ using EcommerceAPI.Dto;
 using EcommerceAPI.Interfaces;
 using EcommerceAPI.Models;
 using EcommerceAPI.Repository;
+using EcommerceAPI.Services.User;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Drawing.Printing;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using static NuGet.Packaging.PackagingConstants;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
+        private readonly ICartRepository _cartRepository;
+        private readonly IOrderRepository _orderRepository;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly TokenValidationParameters _tokenValidationParameters;
+        private readonly IUserService _userService;
 
-        public UsersController(IUserRepository userRepository, IMapper mapper, IConfiguration configuration, TokenValidationParameters tokenValidationParameters)
+        public UsersController(IUserRepository userRepository, IUserRoleRepository userRoleRepository, ICartRepository cartRepository, IOrderRepository orderRepository, IMapper mapper, IConfiguration configuration, TokenValidationParameters tokenValidationParameters, IUserService userService)
         {
             _userRepository = userRepository;
+            _userRoleRepository = userRoleRepository;
+            _cartRepository = cartRepository;
+            _orderRepository = orderRepository;
             _mapper = mapper;
             _configuration = configuration;
             _tokenValidationParameters = tokenValidationParameters;
+            _userService = userService;
         }
 
         [HttpGet]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserDetailDto>>> GetUsers()
         {
             var users = await _userRepository.GetUsers();
@@ -48,28 +61,29 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/Users/Email/user@example.com
         [HttpGet("Email/{email}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<User>> GetUserByEmail(string email)
         {
             var user = await _userRepository.GetUserByEmail(email);
 
             if (user == null)
             {
-                return NotFound(new BaseResponse { Message = "User not found." });
+                return NotFound(new BaseResponse { Message = "User not found.", Errors = new[] { $"{email} not found." } });
             }
 
             var userDetailDto = _mapper.Map<UserDetailDto>(user);
 
-            return Ok(new { resultCount = 1, users = userDetailDto }); ;
+            return Ok(new BaseResponse { ResultCount = 1, Result = userDetailDto }); ;
         }
 
         // POST: api/Users/Register
         [HttpPost("Register")]
+        [AllowAnonymous]
         public async Task<ActionResult<User>> Register([FromBody] UserRegisterDto userRegisterRequest)
         {
             if (_userRepository.EmailUsed(userRegisterRequest.Email))
             {
-                return BadRequest(new BaseResponse { Message = "This email is already in use." });
+                return BadRequest(new BaseResponse { Message = "This email is already in use.", Errors = new[] { $"Duplicate email {userRegisterRequest.Email}" } });
             }
 
             CreatePasswordHash(userRegisterRequest.Password, out byte[] passwordHash, out byte[] passwordSalt);
@@ -89,16 +103,36 @@ namespace EcommerceAPI.Controllers
 
             if (response != true)
             {
-                return BadRequest(new BaseResponse { Message = "Something went wrong." });
+                return BadRequest(new BaseResponse { Message = "Something went wrong.", Errors = new[] { "Fail to save into database." } });
             }
 
-            var tokenString = await GenerateJwtToken(user);
+            return Ok(new BaseResponse { Message = "Your account has been successfully created."});
+        }
 
-            return Ok(new BaseResponse { Message = "Your account has been successfully created.", Result = tokenString });
+        // api/Users/ClaimRole
+        [HttpPut("ClaimRole")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> ClaimRole(UserClaimRoleDto userClaimRole)
+        {
+            if (!_userRepository.IsUserExists(userClaimRole.UserId))
+            {
+                return NotFound(new BaseResponse { Message = "User not found." });
+            }
+
+            if (!_userRoleRepository.IsUserRoleExists(userClaimRole.RoleId))
+            {
+                return NotFound(new BaseResponse { Message = "User role not found." });
+            }
+
+            await _userRepository.UpdateUserRole(userClaimRole.UserId, userClaimRole.RoleId);
+            await _userRepository.Save();
+
+            return Ok(new BaseResponse { Message = "User role updated." });
         }
 
         // POST: api/Users/Login
         [HttpPost("Login")]
+        [AllowAnonymous]
         public async Task<ActionResult> Login([FromBody] UserLoginDto userLoginRequest)
         {
             var user = await _userRepository.GetUserByEmail(userLoginRequest.Email);
@@ -120,6 +154,7 @@ namespace EcommerceAPI.Controllers
 
         // POST: api/Users/RefreshToken
         [HttpPost("RefreshToken")]
+        [AllowAnonymous]
         public async Task<ActionResult> RefreshToken([FromBody] TokenRequestDto tokenRequest)
         {
             var result = await VerifyAndGenerateToken(tokenRequest);
@@ -135,33 +170,30 @@ namespace EcommerceAPI.Controllers
 
         // GET : api/Users/Cart
         [HttpGet("Cart")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult> GetUserCart()
+        [Authorize(Roles = "Buyer")]
+        public async Task<ActionResult> GetUserCart([FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
         {
-            var userId = int.Parse(User.Claims.Where(x => x.Type == "UserId").FirstOrDefault()?.Value);
+            var pageCount = Math.Ceiling(_cartRepository.CountCarts(_userService.GetUserId()) / (float)pageSize);
 
-            var user = await _userRepository.GetUserCart(userId);
+            var user = await _userRepository.GetUserCart(_userService.GetUserId(), page, pageSize);
 
             var userDto = _mapper.Map<UserDto>(user);
 
-            return Ok(new BaseResponse { Result = userDto });
+            return Ok(new BaseResponse { Result = userDto.Carts, ResultCount = userDto.Carts.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         // GET : api/Users/Order
         [HttpGet("Order")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(Roles = "Buyer")]
         public async Task<ActionResult> GetUserOrder([FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
         {
-            var userId = int.Parse(User.Claims.Where(x => x.Type == "UserId").FirstOrDefault()?.Value);
-            var user = await _userRepository.GetUserOrder(userId);
-            
+            var pageCount = Math.Ceiling(_orderRepository.CountOrders(_userService.GetUserId()) / (float)pageSize);
+
+            var user = await _userRepository.GetUserOrder(_userService.GetUserId(), page, pageSize);
+
             var userDto = _mapper.Map<UserDto>(user);
-            var orders = userDto.Orders;
 
-            var pageCount = Math.Ceiling(orders.Count() / (float)pageSize);
-            var pagedOrders = orders.Skip((page - 1) * pageSize).Take(pageSize);
-
-            return Ok(new BaseResponse { ResultCount = pagedOrders.Count(), Result = pagedOrders, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
+            return Ok(new BaseResponse { Result = userDto.Orders, ResultCount = userDto.Orders.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         private void CreatePasswordHash(String password, out byte[] passwordHash, out byte[] passwordSalt)
@@ -192,11 +224,12 @@ namespace EcommerceAPI.Controllers
                 {
                     new Claim("UserId", user.UserId.ToString()),
                     new Claim("Email", user.Email),
+                    new Claim(ClaimTypes.Role, user.UserRole.RoleName),
                     new Claim(JwtRegisteredClaimNames.Email, value:user.Email),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                     new Claim(JwtRegisteredClaimNames.Iat, DateTime.Now.ToUniversalTime().ToString())
                 }),
-                Expires = DateTime.Now.Add(TimeSpan.Parse(_configuration.GetSection(key: "JwtConfig:ExpiryTimeFrame").Value)),
+                Expires = DateTime.Now.ToUniversalTime().Add(TimeSpan.Parse(_configuration.GetSection(key: "JwtConfig:ExpiryTimeFrame").Value)),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
             };
 

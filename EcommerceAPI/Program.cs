@@ -5,7 +5,6 @@ using EcommerceAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using EcommerceAPI.Models;
 using EcommerceAPI.Interfaces;
 using EcommerceAPI.Repository;
+using EcommerceAPI.Services.User;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,17 +34,24 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 builder.Services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddDbContext<EcommerceContext>(options =>
 {
     // options.UseLazyLoadingProxies();
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("someeConnection"));
 });
 
 // JWT Bearer
 builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection(key: "JwtConfig"));
+
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpContextAccessor();
 
 var key = Encoding.ASCII.GetBytes(builder.Configuration.GetSection(key: "JwtConfig:Secret").Value);
 var issuer = builder.Configuration.GetSection(key: "JwtConfig:Issuer").Value;
@@ -112,8 +119,8 @@ app.UseStatusCodePages(async statusCodeContext =>
     await statusCodeContext.HttpContext.Response.WriteAsync(exceptionResult);
 });
 
-app.UseAuthorization();
 app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

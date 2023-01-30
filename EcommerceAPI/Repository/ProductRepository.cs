@@ -42,7 +42,6 @@ namespace EcommerceAPI.Repository
         }
         public bool IsProductExists(int categoryId)
         {
-
             return _context.Products.Any(e => e.ProductId == categoryId);
         }
 
@@ -62,6 +61,19 @@ namespace EcommerceAPI.Repository
         public Product UpdateProduct(Product product)
         {
             _context.Update(product);
+            _context.Entry(product).Property(p => p.ImagePath).IsModified = false;
+            return product;
+        }
+
+        public async Task<Product> UpdateProductImage(int productId, string filePath)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == productId);
+
+            if (product != null)
+            {
+                product.ImagePath = filePath;
+            }
+
             return product;
         }
     }

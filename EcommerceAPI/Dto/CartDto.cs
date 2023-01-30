@@ -18,6 +18,8 @@ namespace EcommerceAPI.Dto
 
         [JsonIgnore]
         public virtual UserDto User { get; set; } = null!;
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public virtual ProductDto Product { get; set; } = null!;
     }
 }

@@ -25,6 +25,7 @@ namespace EcommerceAPI.Dto
         [Required(ErrorMessage = "A product image is required")]
         public string ImagePath { get; set; } = string.Empty!;
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public virtual ProductCategoryDto ProductCategory { get; set; } = null!;
 
     }

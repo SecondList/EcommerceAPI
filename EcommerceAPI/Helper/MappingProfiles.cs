@@ -22,6 +22,8 @@ namespace EcommerceAPI.Helper
             CreateMap<ProductDto, Product>();
             CreateMap<ProductDetailDto, Product>();
             CreateMap<ProductCreateDto, Product>();
+            CreateMap<ProductUpdateDto, Product>();
+            CreateMap<ProductImageDto, Product>();
             CreateMap<ProductCategory, ProductCategoryDto>();
             CreateMap<ProductCategory, ProductCategoryCreateDto>();
             CreateMap<ProductCategory, ProductCategoryDetailDto>();

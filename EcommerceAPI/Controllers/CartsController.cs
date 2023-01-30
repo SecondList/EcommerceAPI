@@ -8,6 +8,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using EcommerceAPI.Interfaces;
+using EcommerceAPI.Services.User;
 
 namespace EcommerceAPI.Controllers
 {
@@ -17,163 +18,118 @@ namespace EcommerceAPI.Controllers
     public class CartsController : ControllerBase
     {
         private readonly ICartRepository _cartRepository;
+        private readonly IProductRepository _productRepository;
         private readonly IMapper _mapper;
+        private readonly IUserService _userService;
 
-        public CartsController(ICartRepository cartRepository, IMapper mapper)
+        public CartsController(ICartRepository cartRepository, IProductRepository productRepository, IMapper mapper, IUserService userService)
         {
             _cartRepository = cartRepository;
+            _productRepository = productRepository;
             _mapper = mapper;
+            _userService = userService;
         }
 
         // GET: api/Carts
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CartDetailDto>>> GetCarts()
         {
-            var carts = await _context.Carts.ToListAsync();
+            var carts = await _cartRepository.GetCarts();
             var cartsDto = _mapper.Map<List<CartDetailDto>>(carts);
 
-            return Ok(new { resultCount = cartsDto.Count, carts = cartsDto });
+            return Ok(new BaseResponse { ResultCount = cartsDto.Count, Result = cartsDto });
         }
 
-        // PUT: api/Carts/UpdateOrderQtylinkid=2123754
+        // PUT: api/Carts/UpdateOrderQty
         [HttpPut("UpdateOrderQty")]
         public async Task<IActionResult> UpdateOrderQty([FromBody] CartDetailDto cartDto)
         {
-            if (userId != cartDto.UserId)
-            {
-                return BadRequest(new { message = "Fail to verify user id.", errors = new[] { "User Id not match." } });
-            }
-
-            // Verify user
-            if (!UserExists(cartDto.UserId))
-            {
-                return NotFound(new { message = "User not found.", errors = new[] { $"User ({cartDto.UserId}) doesn't exists." } });
-            }
-
             // Verify product
-            if (!ProductExists(cartDto.ProductId))
+            if (!_productRepository.IsProductExists(cartDto.ProductId))
             {
-                return NotFound(new { message = "Product not found.", errors = new[] { $"Product ({cartDto.ProductId}) doesn't exists." } });
+                return NotFound(new BaseResponse { Message = "Product not found.", Errors = new[] { $"Product ({cartDto.ProductId}) doesn't exists." } });
             }
 
             // Verify cart
-            if (!ProductExistsInCart(cartDto.UserId, cartDto.ProductId))
+            if (!_cartRepository.IsProductFoundInCart(_userService.GetUserId(), cartDto.ProductId))
             {
-                return NotFound(new { message = "Unable to update this item in cart.", errors = new[] { $"Product ({cartDto.ProductId}) is not found in user's ({cartDto.UserId}) cart." } });
+                return NotFound(new BaseResponse { Message = "Product not found in cart.", Errors = new[] { $"Product ({cartDto.ProductId}) is not found in user's ({_userService.GetUserId()}) cart." } });
             }
 
-            var cart = _mapper.Map<Cart>(cartDto);
+            var cart = _mapper.Map<CartDetailDto, Cart>(cartDto, opt =>
+            {
+                opt.AfterMap((cartDto, cart) =>
+                {
+                    cart.UserId = _userService.GetUserId();
+                });
+            });
 
-            _context.Update(cart);
-            await _context.SaveChangesAsync();
+            _cartRepository.UpdateCart(cart);
+            await _cartRepository.Save();
 
-            return Ok(new { message = "Order quantity updated." });
+            return Ok(new BaseResponse { Message = "Order quantity updated.", Result = cartDto });
         }
 
-        // POST: api/Carts/1/AddItem
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("{userId}/AddItem")]
+        // POST: api/Carts/AddItem
+        [HttpPost("AddItem")]
         public async Task<ActionResult<CartDto>> AddItem(int userId, CartDetailDto cartDto)
         {
-            if (userId != cartDto.UserId)
-            {
-                return BadRequest(new { message = "Fail to verify user id.", errors = new[] { "User Id not match." } });
-            }
-
-            // Verify user
-            if (!UserExists(cartDto.UserId))
-            {
-                return NotFound(new { message = "User not found.", errors = new[] { $"User ({cartDto.UserId}) doesn't exists." } });
-            }
-
             // Verify product
-            if (!ProductExists(cartDto.ProductId))
+            if (!_productRepository.IsProductExists(cartDto.ProductId))
             {
-                return NotFound(new { message = "Product not found.", errors = new[] { $"Product ({cartDto.ProductId}) doesn't exists." } });
+                return NotFound(new BaseResponse { Message = "Product not found.", Errors = new[] { $"Product ({cartDto.ProductId}) doesn't exists." } });
             }
 
             // Verify cart
-            if (ProductExistsInCart(cartDto.UserId, cartDto.ProductId))
+            if (_cartRepository.IsProductFoundInCart(_userService.GetUserId(), cartDto.ProductId))
             {
-                return BadRequest(new { message = "Unable to add this item into cart.", errors = new[] { $"Product ({cartDto.ProductId}) already found in user's ({cartDto.UserId}) cart." } });
+                return BadRequest(new BaseResponse { Message = "Product found in cart.", Errors = new[] { $"Product ({cartDto.ProductId}) already found in user's ({_userService.GetUserId()}) cart." } });
             }
 
-            var cart = _mapper.Map<Cart>(cartDto);
+            var cart = _mapper.Map<CartDetailDto, Cart>(cartDto, opt =>
+            {
+                opt.AfterMap((cartDto, cart) =>
+                {
+                    cart.UserId = _userService.GetUserId();
+                });
+            });
 
-            _context.Carts.Add(cart);
-            await _context.SaveChangesAsync();
+            _cartRepository.CreateCart(cart);
+            await _cartRepository.Save();
 
-            return Ok(new { message = $"Product ({cartDto.ProductId}) added into user's ({cartDto.UserId}) cart.", cart = cartDto });
+            return Ok(new BaseResponse { Message = $"Product added into user's cart.", Result = cartDto });
         }
 
-        // DELETE: api/Carts/5/DeleteItem
-        [HttpDelete("{userId}/DeleteItem")]
-        public async Task<IActionResult> DeleteProductInCart(int userId, CartDeleteDto cartDeleteDto)
+        // DELETE: api/Carts/DeleteItem
+        [HttpDelete("DeleteItem")]
+        public async Task<IActionResult> DeleteProductInCart(CartDeleteDto cartDeleteDto)
         {
-            if (userId != cartDeleteDto.UserId)
-            {
-                return BadRequest(new { message = "Fail to verify user id.", errors = new[] { "User Id not match." } });
-            }
-
-            // Verify user
-            if (!UserExists(cartDeleteDto.UserId))
-            {
-                return NotFound(new { message = "User not found.", errors = new[] { $"User ({cartDeleteDto.UserId}) doesn't exists." } });
-            }
-
             // Verify product
-            if (!ProductExists(cartDeleteDto.ProductId))
+            if (!_productRepository.IsProductExists(cartDeleteDto.ProductId))
             {
-                return NotFound(new { message = "Product not found.", errors = new[] { $"Product ({cartDeleteDto.ProductId}) doesn't exists." } });
+                return NotFound(new BaseResponse { Message = "Product not found.", Errors = new[] { $"Product ({cartDeleteDto.ProductId}) doesn't exists." } });
             }
 
             // Verify cart
-            if (!ProductExistsInCart(cartDeleteDto.UserId, cartDeleteDto.ProductId))
+            if (!_cartRepository.IsProductFoundInCart(_userService.GetUserId(), cartDeleteDto.ProductId))
             {
-                return NotFound(new { message = "Unable to remove this item from cart.", errors = new[] { $"Product ({cartDeleteDto.ProductId}) not found in user's ({cartDeleteDto.UserId}) cart." } });
+                return NotFound(new BaseResponse { Message = "Product not found in cart.", Errors = new[] { $"Product ({cartDeleteDto.ProductId}) not found in user's ({_userService.GetUserId()}) cart." } });
             }
 
-            var cart = await _context.Carts.FindAsync(cartDeleteDto.UserId, cartDeleteDto.ProductId);
+            await _cartRepository.RemoveCart(_userService.GetUserId(), cartDeleteDto.ProductId);
+            await _cartRepository.Save();
 
-            _context.Carts.Remove(cart);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Product removed from the cart." });
+            return Ok(new BaseResponse { Message = "Product removed from the cart." });
         }
 
-        // DELETE: api/Carts/5/ClearCart
-        [HttpDelete("{userId}/ClearCart")]
-        public async Task<IActionResult> ClearCart(int userId)
+        // DELETE: api/Carts/ClearCart
+        [HttpDelete("ClearCart")]
+        public async Task<IActionResult> ClearCart()
         {
-            // Verify user
-            if (!UserExists(userId))
-            {
-                return NotFound(new { message = "User not found.", errors = new[] { $"User ({userId}) doesn't exists." } });
-            }
+            var carts = await _cartRepository.ClearCart(_userService.GetUserId());
+            await _cartRepository.Save();
 
-            var carts = _context.Carts.Where(c => c.UserId == userId);
-
-            carts.ToList().ForEach(e => _context.Carts.Remove(e));
-            //_context.Carts.Remove(carts);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = $"Cleared all item in user ({userId}) cart." });
+            return Ok(new BaseResponse { Message = $"Cleared all item in cart.", Result = carts, ResultCount = carts.Count() });
         }
-
-        private bool UserExists(int userId)
-        {
-            return _context.Users.Any(e => e.UserId == userId);
-        }
-
-        private bool ProductExists(int productId)
-        {
-            return _context.Products.Any(e => e.ProductId == productId);
-        }
-
-        private bool ProductExistsInCart(int userId, int productId)
-        {
-            return _context.Carts.Any(e => e.UserId == userId && e.ProductId == productId);
-        }
-
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using EcommerceAPI.Dto;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace EcommerceAPI.ActionFilters
@@ -14,7 +15,7 @@ namespace EcommerceAPI.ActionFilters
                         .Select(v => v.ErrorMessage)
                         .ToList();
 
-                var responseObj = new
+                var responseObj = new BaseResponse
                 {
                     Message = "One or more validation errors occurred.",
                     Errors = errors

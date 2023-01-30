@@ -5,10 +5,6 @@ namespace EcommerceAPI.Dto
 {
     public class CheckOutDto
     {
-        // Cart details
-        [Range(1, int.MaxValue, ErrorMessage = "User Id must be positive value.")]
-        public int UserId { get; set; }
-
         [ValidateIntArray]
         public int[] ProductIds { get; set; } = Array.Empty<int>();
 

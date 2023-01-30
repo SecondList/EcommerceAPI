@@ -4,6 +4,7 @@ using EcommerceAPI.Dto;
 using EcommerceAPI.Helper;
 using EcommerceAPI.Interfaces;
 using EcommerceAPI.Models;
+using EcommerceAPI.Services.User;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,40 +19,38 @@ namespace EcommerceAPI.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class CheckOutsController : ControllerBase
     {
-        private readonly EcommerceContext _context;
+        private readonly IUserService _userService;
+        private readonly ICartRepository _cartRepository;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IPaymentRepository _paymentRepository;
+        private readonly IShipmentRepository _shipmentRepository;
         private readonly IMapper _mapper;
         private readonly IStripeAppService _stripeAppService;
 
-        public CheckOutsController(EcommerceContext context, IMapper mapper, IStripeAppService stripeAppService)
+        public CheckOutsController(IUserService userService, ICartRepository cartRepository, IOrderRepository orderRepository, IPaymentRepository paymentRepository, IShipmentRepository shipmentRepository, IMapper mapper, IStripeAppService stripeAppService)
         {
-            _context = context;
+            _userService = userService;
+            _cartRepository = cartRepository;
+            _orderRepository = orderRepository;
+            _paymentRepository = paymentRepository;
+            _shipmentRepository = shipmentRepository;
             _mapper = mapper;
             _stripeAppService = stripeAppService;
 
         }
 
-        // POST api/Checkouts/1
-        [HttpPost("{userId}")]
-        public async Task<ActionResult<CheckOutDto>> PostCheckout(int userId, [FromBody] CheckOutDto checkOutDto, CancellationToken ct)
+        // POST api/Checkouts
+        [HttpPost]
+        [Authorize(Roles = "Buyer")]
+        public async Task<ActionResult<CheckOutDto>> PostCheckout([FromBody] CheckOutDto checkOutDto, CancellationToken ct)
         {
             decimal amount = 0;
 
-            if (userId != checkOutDto.UserId)
-            {
-                return BadRequest(new { message = "Fail to verify user id.", errors = new[] { "User Id not match." } });
-            }
-
-            // Verify user
-            if (!UserExists(checkOutDto.UserId))
-            {
-                return NotFound(new { message = "User not found.", errors = new[] { $"User ({checkOutDto.UserId}) doesn't exists." } });
-            }
-
-            var carts = await _context.Carts.Include(c => c.Product).Where(c => c.UserId == userId && checkOutDto.ProductIds.Contains(c.ProductId)).ToListAsync();
+            var carts = await _cartRepository.GetCartsByProductIds(_userService.GetUserId(), checkOutDto.ProductIds);
 
             if (carts.Count != checkOutDto.ProductIds.Length)
             {
-                return NotFound(new { message = "Cart not found.", errors = new[] { $"Some of the item not found in user's ({checkOutDto.UserId}) cart." } });
+                return NotFound(new BaseResponse { Message = "Cart not found.", Errors = new[] { $"Some of the item not found in user's ({_userService.GetUserId()}) cart." } });
             }
 
             foreach (var cart in carts)
@@ -65,6 +64,7 @@ namespace EcommerceAPI.Controllers
             {
                 opt.AfterMap((checkOutDto, order) =>
                 {
+                    order.UserId = _userService.GetUserId();
                     order.TotalPrice = amount;
                     order.OrderDetails = orderDetails;
                     order.OrderStatus = 2;
@@ -81,9 +81,9 @@ namespace EcommerceAPI.Controllers
 
             var createdPayment = await _stripeAppService.AddStripePaymentAsync(stripePayment, ct);
 
-            _context.Orders.Add(order);
-            _context.Carts.RemoveRange(carts);
-            await _context.SaveChangesAsync();
+            _orderRepository.CreateOrder(order);
+            _cartRepository.RemoveRange(carts);
+            await _cartRepository.Save();
 
             var payment = _mapper.Map<Order, Payment>(order, opt =>
             {
@@ -107,13 +107,13 @@ namespace EcommerceAPI.Controllers
                 });
             });
 
-            _context.Payments.Add(payment);
-            _context.Shipments.Add(shipment);
-            await _context.SaveChangesAsync();
+            _paymentRepository.CreatePayment(payment);
+            _shipmentRepository.CreateShipment(shipment);
+            await _paymentRepository.Save();
 
             var orderDto = _mapper.Map<OrderDto>(order);
 
-            return Ok(new { message = "Successfully check out.", order = orderDto }) ;
+            return Ok(new BaseResponse { Message = "Successfully check out.", Result = orderDto });
         }
 
         // POST : api/CheckOuts/Stripe/Payment/Add
@@ -124,13 +124,7 @@ namespace EcommerceAPI.Controllers
         {
             StripePayment createdPayment = await _stripeAppService.AddStripePaymentAsync(payment, ct);
 
-            return Ok(createdPayment);
+            return Ok(new BaseResponse { Result = createdPayment });
         }
-
-        private bool UserExists(int userId)
-        {
-            return _context.Users.Any(e => e.UserId == userId);
-        }
-
     }
 }

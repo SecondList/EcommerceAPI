@@ -32,6 +32,7 @@ namespace EcommerceAPI.Data
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Shipment> Shipments { get; set; } = null!;
         public DbSet<UserToken> UserTokens { get; set; } = null!;
+        public DbSet<UserRole> UserRoles { get; set; } = null!;
 
     }
 }

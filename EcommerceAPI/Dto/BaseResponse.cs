@@ -1,16 +1,25 @@
 ﻿using System.Collections;
+using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
     public class BaseResponse
     {
-        public string Message { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public string[] Errors { get; set; } = Array.Empty<string>();
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Message { get; set; } = null!;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Status { get; set; } = null!;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ICollection Errors { get; set; } = null!;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public object Result { get; set; } = null!;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int ResultCount { get; set; } = 0;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int Page { get; set; } = 0;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int PageCount { get; set; } = 0;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int PageSize { get; set; } = 0;
     }
 }

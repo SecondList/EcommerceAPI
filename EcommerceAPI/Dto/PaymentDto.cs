@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
@@ -22,6 +23,8 @@ namespace EcommerceAPI.Dto
 
         public DateTime PaymentDate { get; set; } = DateTime.Now;
 
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public virtual OrderDto Order { get; set; } = null!;
     }
 }

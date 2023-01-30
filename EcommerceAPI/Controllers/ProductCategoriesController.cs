@@ -10,7 +10,7 @@ namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
     public class ProductCategoriesController : ControllerBase
     {
         private readonly IProductCategoryRepository _productCategoryRepository;
@@ -41,7 +41,7 @@ namespace EcommerceAPI.Controllers
 
             if (productCategory == null)
             {
-                return NotFound(new { message = "Product category not found." });
+                return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
             var productCategoryDto = _mapper.Map<ProductCategoryDetailDto>(productCategory);
@@ -55,12 +55,12 @@ namespace EcommerceAPI.Controllers
         {
             if (categoryId != productCategoryModifyRequest.CategoryId)
             {
-                return BadRequest(new { message = "Category Id unmatch." });
+                return BadRequest(new BaseResponse { Message = "Category Id unmatch." });
             }
 
             if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
             {
-                return NotFound(new { message = "Product category not found." });
+                return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
             var productCategory = _mapper.Map<ProductCategory>(productCategoryModifyRequest);
@@ -68,7 +68,7 @@ namespace EcommerceAPI.Controllers
             _productCategoryRepository.UpdateProductCategory(productCategory);
             await _productCategoryRepository.Save();
 
-            return Ok(new { message = "Product category updated."});
+            return Ok(new BaseResponse { Message = "Product category updated." });
         }
 
         // POST: api/ProductCategories/Register
@@ -108,7 +108,7 @@ namespace EcommerceAPI.Controllers
         {
             if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
             {
-                return NotFound(new { message = "Product category not found." });
+                return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
             var productCat = await _productCategoryRepository.GetProductByCategory(categoryId);

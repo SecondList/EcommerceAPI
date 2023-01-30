@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace EcommerceAPI.Dto
 {
@@ -13,6 +14,8 @@ namespace EcommerceAPI.Dto
 
         [Required(ErrorMessage = "The active status of this product category needed to be defined.")]
         public bool ActiveStatus { get; set; } = true;
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public virtual ICollection<ProductDto> Products { get; set; } = null!;
     }
 }

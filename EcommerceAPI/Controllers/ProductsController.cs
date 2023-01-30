@@ -29,6 +29,7 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/Products
         [HttpGet]
+        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
             var pageCount = Math.Ceiling(_productRepository.CountProducts() / (float)pageSize);
@@ -42,6 +43,7 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/Products/5
         [HttpGet("{productId}")]
+        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<Product>> GetProduct(int productId)
         {
             var product = await _productRepository.GetProduct(productId);
@@ -53,21 +55,22 @@ namespace EcommerceAPI.Controllers
 
             var productDto = _mapper.Map<ProductDetailDto>(product);
 
-            return Ok(new { resultCount = 1, products = productDto });
+            return Ok(new BaseResponse { ResultCount = 1, Result = productDto });
         }
 
         // PUT: api/Products/5
         [HttpPut("{productId}")]
-        public async Task<IActionResult> UpdateProduct(int productId, [FromForm] ProductDetailDto productDto)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateProduct(int productId, [FromForm] ProductUpdateDto productDto)
         {
             if (productId != productDto.ProductId)
             {
-                return BadRequest(new { message = "Fail to verify product id.", errors = new[] { "Product Id not match." } });
+                return BadRequest(new BaseResponse { Message = "Fail to verify product id.", Errors = new[] { "Product Id not match." } });
             }
 
             if (!_productRepository.IsProductExists(productId))
             {
-                return NotFound(new { message = "Product not found." });
+                return NotFound(new BaseResponse { Message = "Product not found." });
             }
 
             if (!_productCategoryRepository.IsProductCategoryActive(productDto.CategoryId))
@@ -75,23 +78,44 @@ namespace EcommerceAPI.Controllers
                 return NotFound(new BaseResponse { Message = "Unable to update product with the product category.", Errors = new[] { "The product category is either not found or inactive." } });
             }
 
-            var filePath = await UploadImage(productDto.Image);
-
-            productDto.ImagePath = filePath;
-
-            await DeleteOldImage(productId);
-
             var product = _mapper.Map<Product>(productDto);
 
             _productRepository.UpdateProduct(product);
             await _productRepository.Save();
 
             return Ok(new BaseResponse { Message = "Product updated." });
+        }
 
+        // PUT: api/Products/5/Image
+        [HttpPut("{productId}/Image")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateProductImage(int productId, [FromForm] ProductImageDto productImageDto)
+        {
+            if (productId != productImageDto.ProductId)
+            {
+                return BadRequest(new BaseResponse { Message = "Fail to verify product id.", Errors = new[] { "Product Id not match." } });
+            }
+
+            if (!_productRepository.IsProductExists(productId))
+            {
+                return NotFound(new BaseResponse { Message = "Product not found." });
+            }
+
+            var filePath = await UploadImage(productImageDto.Image);
+
+            productImageDto.ImagePath = filePath;
+
+            await DeleteOldImage(productId);
+
+            await _productRepository.UpdateProductImage(productId, filePath);
+            await _productRepository.Save();
+
+            return Ok(new BaseResponse { Message = "Product updated." });
         }
 
         // POST: api/Products/Register
         [HttpPost("Register")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductDto>> CreateProduct([FromForm] ProductCreateDto productDto)
         {
             if (!_productCategoryRepository.IsProductCategoryActive(productDto.CategoryId))
@@ -113,13 +137,14 @@ namespace EcommerceAPI.Controllers
 
         // DELETE: api/Products/5
         [HttpDelete("{productId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
             var product = await _productRepository.GetProduct(productId);
 
             if (product == null)
             {
-                return NotFound(new { message = "Product not found." });
+                return NotFound(new BaseResponse { Message = "Product not found." });
             }
 
             await DeleteOldImage(productId);
@@ -127,14 +152,14 @@ namespace EcommerceAPI.Controllers
             _productRepository.RemoveProduct(product);
             await _productRepository.Save();
 
-            return Ok(new { message = "Product removed." });
+            return Ok(new BaseResponse { Message = "Product removed." });
         }
 
         private async Task<bool> DeleteOldImage(int productId)
         {
             var existingProduct = await _productRepository.GetProduct(productId);
 
-            if (existingProduct.ImagePath != null)
+            if (existingProduct.ImagePath != "")
             {
                 System.GC.Collect();
                 System.GC.WaitForPendingFinalizers();
