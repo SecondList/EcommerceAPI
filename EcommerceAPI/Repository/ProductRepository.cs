@@ -20,6 +20,12 @@ namespace EcommerceAPI.Repository
             return countProduct;
         }
 
+        public int CountProductsByCategory(int categoryId)
+        {
+            int countProduct = _context.Products.Where(p => p.CategoryId == categoryId).Count();
+            return countProduct;
+        }
+
         public Product CreateProduct(Product product)
         {
             _context.Products.Add(product);
@@ -40,9 +46,9 @@ namespace EcommerceAPI.Repository
         {
             return await _context.Products.OrderBy(p => p.ProductId).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         }
-        public bool IsProductExists(int categoryId)
+        public bool IsProductExists(int productId)
         {
-            return _context.Products.Any(e => e.ProductId == categoryId);
+            return _context.Products.Any(e => e.ProductId == productId);
         }
 
         public Product RemoveProduct(Product product)

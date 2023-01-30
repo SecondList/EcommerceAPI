@@ -5,25 +5,29 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using EcommerceAPI.Interfaces;
+using EcommerceAPI.Repository;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductCategoriesController : ControllerBase
     {
         private readonly IProductCategoryRepository _productCategoryRepository;
+        private readonly IProductRepository _productRepository;
         private readonly IMapper _mapper;
 
-        public ProductCategoriesController(IProductCategoryRepository productCategoryRepository, IMapper mapper)
+        public ProductCategoriesController(IProductCategoryRepository productCategoryRepository, IProductRepository productRepository, IMapper mapper)
         {
             _productCategoryRepository = productCategoryRepository;
+            _productRepository = productRepository;
             _mapper = mapper;
         }
 
         // GET: api/ProductCategories
         [HttpGet]
+        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<IEnumerable<ProductCategoryDetailDto>>> GetProductCategories()
         {
             var productCategories = await _productCategoryRepository.GetProductCategories();
@@ -35,6 +39,7 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/ProductCategories/5
         [HttpGet("{categoryId}")]
+        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<ProductCategoryDto>> GetProductCategory(int categoryId)
         {
             var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
@@ -51,6 +56,7 @@ namespace EcommerceAPI.Controllers
 
         // PUT: api/ProductCategories/5
         [HttpPut("{categoryId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> PutProductCategory(int categoryId, ProductCategoryDetailDto productCategoryModifyRequest)
         {
             if (categoryId != productCategoryModifyRequest.CategoryId)
@@ -73,6 +79,7 @@ namespace EcommerceAPI.Controllers
 
         // POST: api/ProductCategories/Register
         [HttpPost("Register")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductCategoryDetailDto>> PostProductCategory(ProductCategoryCreateDto productCategoryModifyRequest)
         {
             var productCategory = _mapper.Map<ProductCategory>(productCategoryModifyRequest);
@@ -87,6 +94,7 @@ namespace EcommerceAPI.Controllers
 
         // DELETE: api/ProductCategories/5
         [HttpDelete("{categoryId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProductCategory(int categoryId)
         {
             var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
@@ -104,18 +112,21 @@ namespace EcommerceAPI.Controllers
 
         // GET : api/ProductCategories/1/Products
         [HttpGet("{categoryId}/Products")]
-        public async Task<IActionResult> GetProductInCategory(int categoryId)
+        [Authorize(Roles = "Buyer,Admin")]
+        public async Task<IActionResult> GetProductInCategory([FromRoute] int categoryId, [FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
             if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
             {
                 return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
-            var productCat = await _productCategoryRepository.GetProductByCategory(categoryId);
+            var pageCount = Math.Ceiling(_productRepository.CountProductsByCategory(categoryId) / (float)pageSize);
+
+            var productCat = await _productCategoryRepository.GetProductByCategory(categoryId, page, pageSize);
 
             var productCategoryDto = _mapper.Map<ProductCategoryDto>(productCat);
 
-            return Ok(new BaseResponse { ResultCount = productCategoryDto.Products.Count, Result = productCategoryDto });
+            return Ok(new BaseResponse { ResultCount = productCategoryDto.Products.Count, Result = productCategoryDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
     }
 }

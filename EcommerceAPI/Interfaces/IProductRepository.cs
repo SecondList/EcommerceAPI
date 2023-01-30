@@ -12,7 +12,8 @@ namespace EcommerceAPI.Interfaces
         Task<Product> UpdateProductImage(int productId, string filePath);
         Product RemoveProduct(Product product);
         Task<bool> Save();
-        bool IsProductExists(int categoryId);
+        bool IsProductExists(int productId);
         int CountProducts();
+        int CountProductsByCategory(int categoryId);
     }
 }

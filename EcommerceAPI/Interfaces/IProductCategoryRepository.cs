@@ -7,6 +7,7 @@ namespace EcommerceAPI.Interfaces
         Task<ICollection<ProductCategory>> GetProductCategories();
         Task<ProductCategory> GetProductCategory(int categoryId);
         Task<ProductCategory> GetProductByCategory(int categoryId);
+        Task<ProductCategory> GetProductByCategory(int categoryId, int page, int pageSize);
         ProductCategory CreateProductCategory(ProductCategory productCategory);
         ProductCategory UpdateProductCategory(ProductCategory productCategory);
         ProductCategory RemoveProductCategory(ProductCategory productCategory);

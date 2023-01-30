@@ -27,6 +27,13 @@ namespace EcommerceAPI.Repository
             return productCategory;
         }
 
+        public async Task<ProductCategory> GetProductByCategory(int categoryId, int page, int pageSize)
+        {
+            var productCategory = await _context.ProductCategories.Include(pc => pc.Products.OrderBy(p => p.ProductId).Skip((page - 1) * pageSize).Take(pageSize)).FirstOrDefaultAsync(pc => pc.CategoryId == categoryId);
+
+            return productCategory;
+        }
+
         public async Task<ICollection<ProductCategory>> GetProductCategories()
         {
             return await _context.ProductCategories.ToListAsync();

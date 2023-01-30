@@ -13,7 +13,6 @@ namespace EcommerceAPI.Dto
         public ICollection Errors { get; set; } = null!;
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public object Result { get; set; } = null!;
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int ResultCount { get; set; } = 0;
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int Page { get; set; } = 0;
