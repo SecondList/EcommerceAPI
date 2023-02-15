@@ -88,6 +88,12 @@ builder.Services.AddSingleton(tokenValidationParameters);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddCors(options => options.AddPolicy(
+    name: "EcommerceOrigins",
+    policy =>
+    {
+        policy.WithOrigins("http://localhost:4200").AllowAnyMethod().AllowAnyHeader();
+    }));
 
 // Add Stripe Infrastructure
 builder.Services.AddStripeInfrastructure(builder.Configuration);
@@ -102,6 +108,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseGlobalErrorHandlingMiddleware();
+
+app.UseCors("EcommerceOrigins");
 
 app.UseHttpsRedirection();
 

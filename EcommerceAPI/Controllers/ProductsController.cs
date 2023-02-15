@@ -6,12 +6,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using EcommerceAPI.Helper;
 using EcommerceAPI.Interfaces;
+using System.Net.Mime;
 
 namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductsController : ControllerBase
     {
         private readonly IProductRepository _productRepository;
@@ -29,7 +29,6 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/Products
         [HttpGet]
-        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
             var pageCount = Math.Ceiling(_productRepository.CountProducts() / (float)pageSize);
@@ -43,7 +42,6 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/Products/5
         [HttpGet("{productId}")]
-        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<Product>> GetProduct(int productId)
         {
             var product = await _productRepository.GetProduct(productId);
@@ -60,7 +58,8 @@ namespace EcommerceAPI.Controllers
 
         // PUT: api/Products/5
         [HttpPut("{productId}")]
-        [Authorize(Roles = "Admin")]
+
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> UpdateProduct(int productId, [FromForm] ProductUpdateDto productDto)
         {
             if (productId != productDto.ProductId)
@@ -88,7 +87,8 @@ namespace EcommerceAPI.Controllers
 
         // PUT: api/Products/5/Image
         [HttpPut("{productId}/Image")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
         public async Task<IActionResult> UpdateProductImage(int productId, [FromForm] ProductImageDto productImageDto)
         {
             if (productId != productImageDto.ProductId)
@@ -115,7 +115,8 @@ namespace EcommerceAPI.Controllers
 
         // POST: api/Products/Register
         [HttpPost("Register")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
         public async Task<ActionResult<ProductDto>> CreateProduct([FromForm] ProductCreateDto productDto)
         {
             if (!_productCategoryRepository.IsProductCategoryActive(productDto.CategoryId))
@@ -137,7 +138,7 @@ namespace EcommerceAPI.Controllers
 
         // DELETE: api/Products/5
         [HttpDelete("{productId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
             var product = await _productRepository.GetProduct(productId);
@@ -153,6 +154,26 @@ namespace EcommerceAPI.Controllers
             await _productRepository.Save();
 
             return Ok(new BaseResponse { Message = "Product removed." });
+        }
+
+        // GET: api/Products/Image/
+        [HttpGet("Image/{imageFile}")]
+        public async Task<IActionResult> GetProductImage(string imageFile)
+        {
+            string imagePath = Path.Combine(_environment.WebRootPath, "products", "images", imageFile);
+            string contentType = "image/jpeg";
+
+            try
+            {
+                var fileByte = await System.IO.File.ReadAllBytesAsync(imagePath);
+                var fileContentResult = new FileContentResult(fileByte, contentType);
+
+                return fileContentResult;
+            }
+            catch (Exception ex)
+            {
+                return NotFound("");
+            }
         }
 
         private async Task<bool> DeleteOldImage(int productId)

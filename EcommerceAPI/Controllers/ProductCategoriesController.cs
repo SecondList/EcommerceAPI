@@ -27,7 +27,6 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/ProductCategories
         [HttpGet]
-        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<IEnumerable<ProductCategoryDetailDto>>> GetProductCategories()
         {
             var productCategories = await _productCategoryRepository.GetProductCategories();
@@ -39,7 +38,6 @@ namespace EcommerceAPI.Controllers
 
         // GET: api/ProductCategories/5
         [HttpGet("{categoryId}")]
-        [Authorize(Roles = "Buyer,Admin")]
         public async Task<ActionResult<ProductCategoryDto>> GetProductCategory(int categoryId)
         {
             var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
@@ -112,7 +110,6 @@ namespace EcommerceAPI.Controllers
 
         // GET : api/ProductCategories/1/Products
         [HttpGet("{categoryId}/Products")]
-        [Authorize(Roles = "Buyer,Admin")]
         public async Task<IActionResult> GetProductInCategory([FromRoute] int categoryId, [FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
             if (!_productCategoryRepository.IsProductCategoryExists(categoryId))
