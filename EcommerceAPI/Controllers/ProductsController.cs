@@ -31,13 +31,14 @@ namespace EcommerceAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery(Name = "PageSize")] int pageSize = 10, [FromQuery(Name = "Page")] int page = 1)
         {
-            var pageCount = Math.Ceiling(_productRepository.CountProducts() / (float)pageSize);
+            var productCount = _productRepository.CountProducts();
+            var pageCount = Math.Ceiling(productCount / (float)pageSize);
 
             var products = await _productRepository.GetProducts(page, pageSize);
 
             var productsDto = _mapper.Map<List<ProductDetailDto>>(products);
 
-            return Ok(new BaseResponse { ResultCount = productsDto.Count, Result = productsDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
+            return Ok(new BaseResponse { ResultCount = productsDto.Count, TotalCount = productCount, Result = productsDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         // GET: api/Products/5
@@ -53,7 +54,7 @@ namespace EcommerceAPI.Controllers
 
             var productDto = _mapper.Map<ProductDetailDto>(product);
 
-            return Ok(new BaseResponse { ResultCount = 1, Result = productDto });
+            return Ok(new BaseResponse { ResultCount = 1, TotalCount = 1, Result = productDto });
         }
 
         // PUT: api/Products/5

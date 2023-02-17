@@ -14,6 +14,12 @@ namespace EcommerceAPI.Repository
             _context = context;
         }
 
+        public int CountProductCategories()
+        {
+            int countProductCategory = _context.ProductCategories.Count();
+            return countProductCategory;
+        }
+
         public ProductCategory CreateProductCategory(ProductCategory productCategory)
         {
             _context.ProductCategories.Add(productCategory);

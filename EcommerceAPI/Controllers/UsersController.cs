@@ -106,7 +106,7 @@ namespace EcommerceAPI.Controllers
                 return BadRequest(new BaseResponse { Message = "Something went wrong.", Errors = new[] { "Fail to save into database." } });
             }
 
-            return Ok(new BaseResponse { Message = "Your account has been successfully created."});
+            return Ok(new BaseResponse { Message = "Your account has been successfully created." });
         }
 
         // api/Users/ClaimRole
@@ -173,13 +173,14 @@ namespace EcommerceAPI.Controllers
         [Authorize(Roles = "Buyer")]
         public async Task<ActionResult> GetUserCart([FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
         {
-            var pageCount = Math.Ceiling(_cartRepository.CountCarts(_userService.GetUserId()) / (float)pageSize);
+            var cartCount = _cartRepository.CountCarts(_userService.GetUserId());
+            var pageCount = Math.Ceiling(cartCount / (float)pageSize);
 
             var user = await _userRepository.GetUserCart(_userService.GetUserId(), page, pageSize);
 
             var userDto = _mapper.Map<UserDto>(user);
 
-            return Ok(new BaseResponse { Result = userDto.Carts, ResultCount = userDto.Carts.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
+            return Ok(new BaseResponse { Result = userDto.Carts, TotalCount = cartCount, ResultCount = userDto.Carts.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         // GET : api/Users/Order
@@ -187,13 +188,14 @@ namespace EcommerceAPI.Controllers
         [Authorize(Roles = "Buyer")]
         public async Task<ActionResult> GetUserOrder([FromQuery(Name = "PageSize")] int pageSize = 5, [FromQuery(Name = "Page")] int page = 1)
         {
-            var pageCount = Math.Ceiling(_orderRepository.CountOrders(_userService.GetUserId()) / (float)pageSize);
+            var orderCount = _orderRepository.CountOrders(_userService.GetUserId());
+            var pageCount = Math.Ceiling(orderCount / (float)pageSize);
 
             var user = await _userRepository.GetUserOrder(_userService.GetUserId(), page, pageSize);
 
             var userDto = _mapper.Map<UserDto>(user);
 
-            return Ok(new BaseResponse { Result = userDto.Orders, ResultCount = userDto.Orders.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
+            return Ok(new BaseResponse { Result = userDto.Orders, TotalCount = orderCount, ResultCount = userDto.Orders.Count, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
 
         private void CreatePasswordHash(String password, out byte[] passwordHash, out byte[] passwordSalt)

@@ -14,5 +14,7 @@ namespace EcommerceAPI.Interfaces
         Task<bool> Save();
         bool IsProductCategoryExists(int categoryId);
         bool IsProductCategoryActive(int categoryId);
+        int CountProductCategories();
+
     }
 }

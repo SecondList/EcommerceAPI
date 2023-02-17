@@ -20,5 +20,7 @@ namespace EcommerceAPI.Dto
         public int PageCount { get; set; } = 0;
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int PageSize { get; set; } = 0;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int TotalCount { get; set; } = 0;
     }
 }

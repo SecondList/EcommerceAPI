@@ -29,11 +29,12 @@ namespace EcommerceAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductCategoryDetailDto>>> GetProductCategories()
         {
+            var productCategoryCount = _productCategoryRepository.CountProductCategories();
             var productCategories = await _productCategoryRepository.GetProductCategories();
 
             var productCategoriesDto = _mapper.Map<List<ProductCategoryDetailDto>>(productCategories);
 
-            return Ok(new BaseResponse { ResultCount = productCategories.Count, Result = productCategoriesDto });
+            return Ok(new BaseResponse { ResultCount = productCategories.Count, TotalCount = productCategoryCount, Result = productCategoriesDto });
         }
 
         // GET: api/ProductCategories/5
@@ -49,7 +50,7 @@ namespace EcommerceAPI.Controllers
 
             var productCategoryDto = _mapper.Map<ProductCategoryDetailDto>(productCategory);
 
-            return Ok(new BaseResponse { ResultCount = 1, Result = productCategoryDto });
+            return Ok(new BaseResponse { ResultCount = 1, TotalCount = 1, Result = productCategoryDto });
         }
 
         // PUT: api/ProductCategories/5
@@ -117,13 +118,14 @@ namespace EcommerceAPI.Controllers
                 return NotFound(new BaseResponse { Message = "Product category not found." });
             }
 
-            var pageCount = Math.Ceiling(_productRepository.CountProductsByCategory(categoryId) / (float)pageSize);
+            var productCount = _productRepository.CountProductsByCategory(categoryId);
+            var pageCount = Math.Ceiling(productCount / (float)pageSize);
 
             var productCat = await _productCategoryRepository.GetProductByCategory(categoryId, page, pageSize);
 
             var productCategoryDto = _mapper.Map<ProductCategoryDto>(productCat);
 
-            return Ok(new BaseResponse { ResultCount = productCategoryDto.Products.Count, Result = productCategoryDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
+            return Ok(new BaseResponse { ResultCount = productCategoryDto.Products.Count, TotalCount = productCount, Result = productCategoryDto, PageSize = pageSize, Page = page, PageCount = (int)pageCount });
         }
     }
 }
