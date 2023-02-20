@@ -11,7 +11,6 @@ namespace EcommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductCategoriesController : ControllerBase
     {
         private readonly IProductCategoryRepository _productCategoryRepository;
@@ -55,7 +54,7 @@ namespace EcommerceAPI.Controllers
 
         // PUT: api/ProductCategories/5
         [HttpPut("{categoryId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> PutProductCategory(int categoryId, ProductCategoryDetailDto productCategoryModifyRequest)
         {
             if (categoryId != productCategoryModifyRequest.CategoryId)
@@ -78,7 +77,7 @@ namespace EcommerceAPI.Controllers
 
         // POST: api/ProductCategories/Register
         [HttpPost("Register")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<ActionResult<ProductCategoryDetailDto>> PostProductCategory(ProductCategoryCreateDto productCategoryModifyRequest)
         {
             var productCategory = _mapper.Map<ProductCategory>(productCategoryModifyRequest);
@@ -93,7 +92,7 @@ namespace EcommerceAPI.Controllers
 
         // DELETE: api/ProductCategories/5
         [HttpDelete("{categoryId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         public async Task<IActionResult> DeleteProductCategory(int categoryId)
         {
             var productCategory = await _productCategoryRepository.GetProductCategory(categoryId);
