@@ -19,7 +19,7 @@ namespace EcommerceAPI.Models
         [Range(1, 99999, ErrorMessage = "Quantity must be a positive value and cannot order more than 99999 items")]
         [DisplayName("Order Quantity")]
         public int OrderQty { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; }
         public virtual User User { get; set; } = null!;
         public virtual Product Product { get; set; } = null!;
 

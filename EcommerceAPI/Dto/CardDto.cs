@@ -11,7 +11,7 @@ namespace EcommerceAPI.Dto
         public string CardName { get; set; }
 
         [Required]
-        [RegularExpression(@"^(20|99)\d{2}$", ErrorMessage = "Please enter a valid year.")]
+        [RegularExpression(@"^\d{2}$", ErrorMessage = "Please enter a valid year.")]
         public string ExpYear { get; set; }
 
         [Range(1, 12)]

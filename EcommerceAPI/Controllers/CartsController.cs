@@ -91,6 +91,7 @@ namespace EcommerceAPI.Controllers
                 opt.AfterMap((cartDto, cart) =>
                 {
                     cart.UserId = _userService.GetUserId();
+                    cart.CreatedAt = DateTime.Now;
                 });
             });
 

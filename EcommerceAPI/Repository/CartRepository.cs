@@ -101,6 +101,7 @@ namespace EcommerceAPI.Repository
         public Cart UpdateCart(Cart cart)
         {
             _context.Carts.Update(cart);
+            _context.Entry(cart).Property(c => c.CreatedAt).IsModified = false;
             return cart;
         }
     }
