@@ -242,8 +242,8 @@ namespace EcommerceAPI.Controllers
             {
                 JwtId = token.Id,
                 Token = RandomStringGeneration(24),
-                AddedDate = DateTime.Now,
-                ExpiryDate = DateTime.Now.AddMonths(1),
+                AddedDate = DateTime.Now.ToUniversalTime(),
+                ExpiryDate = DateTime.Now.ToUniversalTime().Add(TimeSpan.Parse(_configuration.GetSection(key: "JwtConfig:ExpiryTimeFrame").Value)),
                 IsRevoked = false,
                 IsUsed = false,
                 UserId = user.UserId
